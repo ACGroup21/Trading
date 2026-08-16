@@ -121,6 +121,20 @@ the realised hit rate once there are 5+ trades with a target, and says plainly t
 70% is an assumption until then. Keep that honesty — the odds are only ever as good
 as the hit rate fed in.
 
+**Deviation cost is measured in rungs, and only for early exits.** A planned win
+multiplies the pot by `g = rungGrowth(f, m, k)`, so a trade that multiplied it by `a`
+delivered `log(a)/log(g)` rungs and forfeited the rest of the one it owed —
+`1 − log(a)/log(g)`, floored at zero. Losing trades are deliberately excluded: a loss
+is the strategy working as designed, not a lapse, and folding it into the same number
+would bury the thing being measured. `compute()` exposes `potBefore`, `deployActual`
+and `growth` per trade, all derived from the replay rather than read from stored
+fields, so entries written before those fields existed still measure correctly.
+
+`tolDeploy` and `tolExit` are review tolerances, not plan figures — they do carry
+starting values (2 points, 80% of target), because they are editable in the section
+that uses them and the app states what they mean against the current plan. That is the
+distinction: a default is acceptable when it is on screen next to its effect.
+
 ## Gotchas
 
 **`isFinite(null)` is `true`.** `null` coerces to `0`, so a plain `isFinite()` check
