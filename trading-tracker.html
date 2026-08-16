@@ -505,6 +505,7 @@
       <button class="ghost" id="csvBtn">Export to spreadsheet (CSV)</button>
       <button class="ghost" id="mktReset">Forget my custom markets</button>
       <button class="ghost danger" id="resetBtn">Clear all entries</button>
+      <button class="ghost danger" id="wipeBtn">Reset everything</button>
       <input type="file" id="fileIn" accept=".json" style="display:none">
       <span class="saved" id="savedMsg">Saved</span>
     </div>
@@ -815,19 +816,24 @@ function pool(){
   return out.concat(S.custom);
 }
 
-var S={
-  capital:2500,
-  split:0.33,                 /* skim a third of the close, not half */
-  deploy:0.5,                 /* stake half the pot, never all of it */
-  hitOverride:null,           /* null = use your realised hit rate */
-  goal:1000000,               /* the number the odds are measured against */
-  protect:true,
-  entries:[],                 /* {k:"trade",date,mkt,start,finish|null} | {k:"cash",date,dir,pot,amount} */
-  custom:[],                  /* names you typed in yourself */
-  proj:{ mode:"mult", start:null, count:10, mult:5, amount:2500 },
-  basis:"equity",
-  targets:[]                  /* [{v,basis}] — fixed once set */
-};
+/* Factory state, returned fresh on every call. "Reset everything" copies this back
+   over S rather than reassigning it, so nothing holding a reference goes stale. */
+function factoryDefaults(){
+  return {
+    capital:2500,
+    split:0.33,                 /* skim a third of the close, not half */
+    deploy:0.5,                 /* stake half the pot, never all of it */
+    hitOverride:null,           /* null = use your realised hit rate */
+    goal:1000000,               /* the number the odds are measured against */
+    protect:true,
+    entries:[],                 /* {k:"trade",date,mkt,start,finish|null} | {k:"cash",date,dir,pot,amount} */
+    custom:[],                  /* names you typed in yourself */
+    proj:{ mode:"mult", start:null, count:10, mult:5, amount:2500 },
+    basis:"equity",
+    targets:[]                  /* [{v,basis}] — fixed once set */
+  };
+}
+var S=factoryDefaults();
 
 /* ================= helpers ================= */
 function el(id){ return document.getElementById(id); }
@@ -2044,6 +2050,29 @@ el("resetBtn").addEventListener("click",function(){
   }
   resetArmed=false; b.textContent="Clear all entries";
   S.entries=[]; render();
+});
+
+/* "Reset everything" puts the whole app back to a blank slate — entries, plan
+   numbers, milestones, projection and any markets you typed in. Deliberately never
+   localStorage.clear(): this file is served from an origin shared with unrelated
+   projects, and clear() would take theirs too. Copying factoryDefaults() over S and
+   letting persist() rewrite KEY touches nothing but our own key. */
+var wipeArmed=false,wipeTimer=null;
+el("wipeBtn").addEventListener("click",function(){
+  var b=this,n=S.entries.length;
+  if(!wipeArmed){
+    wipeArmed=true;
+    b.textContent=n?("Sure? This deletes "+n+" entr"+(n===1?"y":"ies")+" and your plan"):"Sure? Click again to reset";
+    clearTimeout(wipeTimer);
+    wipeTimer=setTimeout(function(){ wipeArmed=false; b.textContent="Reset everything"; },4000);
+    return;
+  }
+  wipeArmed=false; b.textContent="Reset everything";
+  var d=factoryDefaults(),k;
+  for(k in d) if(d.hasOwnProperty(k)) S[k]=d[k];
+  el("mktSearch").value=""; el("finishIn").value=""; el("multIn").value="";
+  el("dateIn").value=todayISO();
+  syncSettings(); renderCats(); renderPicker(""); render();
 });
 
 function download(name,content,type){
