@@ -1,0 +1,8 @@
+# editor / OS noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# your exported data is yours, not the repo's
+trading-tracker-data.json
+trading-tracker.csv

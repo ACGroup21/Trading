@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trading Ladder Tracker</title>
+<style>
+  :root{
+    color-scheme: light;
+    --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f2ee;
+    --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --series-1:#2a78d6; --series-1-soft:rgba(42,120,214,0.12);
+    --good:#0ca30c; --good-ink:#006300; --warn:#fab219; --critical:#d03b3b;
+    --radius:14px;
+    --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232322;
+      --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+      --series-1:#3987e5; --series-1-soft:rgba(57,135,229,0.18);
+      --good:#0ca30c; --good-ink:#0ca30c; --critical:#d03b3b;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--ink);font-family:var(--font);
+       font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:24px 20px 80px}
+  h1{font-size:24px;margin:0 0 4px;letter-spacing:-0.01em}
+  .sub{color:var(--ink-2);margin:0 0 24px;font-size:14px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+        padding:20px;margin-bottom:20px}
+  .card h2{font-size:16px;margin:0 0 4px;letter-spacing:-0.005em}
+  .card .hint{color:var(--ink-2);font-size:13px;margin:0 0 16px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media (max-width:860px){.two{grid-template-columns:1fr}}
+
+  /* ---- stat tiles ---- */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+  .tile .lab{font-size:12px;color:var(--ink-2);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px}
+  .tile .val{font-size:28px;font-weight:650;letter-spacing:-0.02em;line-height:1.15}
+  .tile .foot{font-size:12px;color:var(--muted);margin-top:4px}
+  .tile.safe{border-left:3px solid var(--good)}
+  .tile.play{border-left:3px solid var(--series-1)}
+
+  /* ---- forms ---- */
+  .form{display:grid;grid-template-columns:1.1fr 1.1fr 0.8fr auto;gap:14px;align-items:end}
+  .form.mkt{grid-template-columns:240px auto}
+  .form.bankrow{grid-template-columns:200px 200px 215px auto}
+  @media (max-width:980px){.form.bankrow{grid-template-columns:1fr 1fr}}
+  @media (max-width:640px){.form.bankrow{grid-template-columns:1fr}}
+  .form.cash{grid-template-columns:0.9fr 1fr 1fr auto}
+  @media (max-width:980px){
+    .form,.form.mkt,.form.cash{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width:640px){
+    .form,.form.mkt,.form.cash{grid-template-columns:1fr}
+  }
+  .form>button{white-space:nowrap}
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+  label .q{font-weight:400;color:var(--muted);display:block;font-size:12px;margin-top:2px}
+  .money{position:relative}
+  .money>span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:18px}
+  input[type=text],input[type=number],input[type=date]{
+    width:100%;padding:13px 14px 13px 30px;font-size:18px;font-family:var(--font);
+    border:1.5px solid var(--axis);border-radius:10px;background:var(--surface-2);color:var(--ink)}
+  input.plain{padding-left:14px;font-size:15px}
+  input:focus{outline:2px solid var(--series-1);outline-offset:1px;border-color:var(--series-1)}
+  .orbox{position:relative}
+  .ifield{position:relative}
+  input.mult{padding-left:14px;font-size:18px;appearance:textfield;-moz-appearance:textfield}
+  input.hasclr{padding-right:38px}
+  .ifield select+.clr{right:30px}
+  .clr{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:none;
+       width:28px;height:28px;padding:0;font-size:17px;line-height:1;border:none;border-radius:8px;
+       background:transparent;color:var(--muted)}
+  .clr.on{display:block}
+  .clr:hover{background:var(--surface-2);color:var(--ink)}
+  input.mult::-webkit-outer-spin-button,input.mult::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  button{font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer;border-radius:10px;
+         border:1px solid var(--border);padding:13px 22px;background:var(--surface-2);color:var(--ink)}
+  button.primary{background:var(--series-1);border-color:var(--series-1);color:#fff}
+  button.primary:disabled,button:disabled{opacity:0.45;cursor:not-allowed}
+  button.ghost{padding:8px 14px;font-size:13px;font-weight:500}
+  button:hover:not(:disabled){filter:brightness(1.06)}
+  select{font-family:var(--font);font-size:15px;padding:12px;border-radius:10px;
+         border:1.5px solid var(--axis);background:var(--surface-2);color:var(--ink);width:100%}
+  .preview{margin-top:16px;padding:14px 16px;border-radius:10px;background:var(--surface-2);
+           border:1px solid var(--border);font-size:14px;min-height:52px;display:flex;align-items:center}
+  .preview.good{border-color:var(--good);background:rgba(12,163,12,0.07)}
+  .preview.bad{border-color:var(--critical);background:rgba(208,59,59,0.07)}
+  .preview b{font-weight:650}
+  .pill{display:inline-block;font-size:12px;font-weight:650;padding:2px 8px;border-radius:999px;
+        border:1px solid var(--border);margin-right:6px;white-space:nowrap}
+  .pill.good{color:var(--good-ink);border-color:var(--good)}
+  .pill.bad{color:var(--critical);border-color:var(--critical)}
+  .pill.mid{color:var(--ink-2)}
+  .pill.open{color:var(--series-1);border-color:var(--series-1)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+  /* ---- market combobox ---- */
+  .mktrow{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,1.6fr);
+          gap:10px;align-items:center;max-width:760px}
+  @media (max-width:640px){.mktrow{grid-template-columns:1fr}}
+  .mktrow select{font-size:15px}
+  .found{font-size:12px;color:var(--muted);margin:7px 0 0}
+  .odds{margin:14px 0 4px;padding:14px 16px;border-radius:10px;background:var(--surface-2);
+        border:1px solid var(--border);font-size:14px;line-height:1.55}
+  .odds b{font-weight:650}
+  .odds .big{font-size:20px;font-weight:650;letter-spacing:-0.01em}
+  a.cmc{color:var(--series-1);text-decoration:none;font-weight:600;font-size:12.5px;
+        padding:5px 10px;border-radius:8px;border:1px solid var(--series-1);white-space:nowrap}
+  a.cmc:hover{background:var(--series-1);color:#fff}
+  a.mktlink{color:var(--series-1);text-decoration:none;border-bottom:1px dotted currentColor}
+  a.mktlink:hover{border-bottom-style:solid}
+  .cmcbar{margin-top:9px;display:none;align-items:center;gap:9px;flex-wrap:wrap}
+  .cmcbar.on{display:flex}
+
+  /* ---- tables ---- */
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;min-width:900px;font-size:13.5px;font-variant-numeric:tabular-nums}
+  table.narrow{min-width:0}
+  th{text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-2);
+     font-weight:600;padding:8px;border-bottom:1.5px solid var(--axis);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  td{text-align:right;padding:9px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+  tbody tr:hover{background:var(--surface-2)}
+  tr.cashrow td{background:rgba(42,120,214,0.06)}
+  tr.openrow td{background:rgba(250,178,25,0.08)}
+  .empty{text-align:center;color:var(--muted);padding:32px 12px;font-size:14px}
+  .del{background:none;border:none;color:var(--muted);font-size:18px;padding:2px 8px;line-height:1;border-radius:6px}
+  .del:hover{color:var(--critical);background:rgba(208,59,59,0.10)}
+  .closein{width:120px;padding:6px 9px !important;font-size:13px !important;border-radius:7px}
+
+  /* ---- charts ---- */
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin:0 0 10px}
+  .legend i{display:inline-block;width:18px;height:0;border-top-width:2px;vertical-align:middle;margin-right:6px}
+  .tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .08s;background:var(--surface);
+       border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;
+       box-shadow:0 6px 22px rgba(0,0,0,.16);z-index:50;white-space:nowrap}
+  .tip .t{font-weight:650;margin-bottom:3px}
+  .tip .r{color:var(--ink-2);font-variant-numeric:tabular-nums}
+
+  /* ---- details / notes ---- */
+  details.box{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+              padding:0 16px;margin-top:16px}
+  details{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0 20px;margin-bottom:20px}
+  summary{cursor:pointer;padding:14px 0;font-weight:600;font-size:14px;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"+  ";color:var(--muted);font-weight:700}
+  details[open] summary::before{content:"−  "}
+  .settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;padding-bottom:18px}
+  .note{font-size:13px;color:var(--ink-2);background:var(--surface-2);border-left:3px solid var(--axis);
+        padding:12px 14px;border-radius:0 8px 8px 0;margin-top:14px}
+  .saved{font-size:13px;color:var(--good-ink);opacity:0;transition:opacity .2s}
+  .saved.on{opacity:1}
+  .danger{color:var(--critical);border-color:var(--critical)}
+
+  /* ---- collapsible sections ---- */
+  details.sect{background:var(--surface);border:1px solid var(--border);
+               border-radius:var(--radius);padding:0 20px;margin-bottom:20px}
+  details.sect>summary{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+                       padding:18px 0;cursor:pointer;list-style:none}
+  details.sect>summary::-webkit-details-marker{display:none}
+  details.sect>summary::before{content:"\25B8";color:var(--muted);font-size:13px;
+                               transform:translateY(-1px);transition:transform .15s}
+  details.sect[open]>summary::before{transform:rotate(90deg) translateX(-1px)}
+  details.sect>summary:hover{color:var(--series-1)}
+  .stitle{font-size:16px;font-weight:650;letter-spacing:-0.005em}
+  .ssum{margin-left:auto;font-size:13px;color:var(--ink-2);font-weight:400;text-align:right}
+  .sbody{padding-bottom:20px}
+  .sbody>.hint:first-child{margin-top:0}
+
+  /* ---- projection & milestones ---- */
+  .modes{display:flex;gap:8px;flex-wrap:wrap}
+  .mode{padding:11px 18px;font-size:14px;background:var(--surface-2)}
+  .mode.on{background:var(--series-1);border-color:var(--series-1);color:#fff}
+  .star{background:none;border:1px solid transparent;font-size:17px;line-height:1;
+        padding:4px 9px;border-radius:8px;color:var(--muted);cursor:pointer}
+  .star:hover{background:var(--surface-2);color:var(--ink-2)}
+  .star.on{color:var(--warn);border-color:var(--border);background:var(--surface-2)}
+  tr.targeted td{background:rgba(250,178,25,0.09)}
+  .ms{padding:15px 0;border-bottom:1px solid var(--grid)}
+  .ms:last-child{border-bottom:none}
+  .ms-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .ms-val{font-size:19px;font-weight:650;letter-spacing:-0.01em}
+  .ms-sub{font-size:13px;color:var(--ink-2);margin-left:auto;text-align:right}
+  .bar{height:9px;border-radius:999px;background:var(--surface-2);border:1px solid var(--border);overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--series-1);border-radius:999px;transition:width .3s}
+  .bar i.done{background:var(--good)}
+  .badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;
+         padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--ink-2)}
+  .badge.done{color:var(--good-ink);border-color:var(--good)}
+  .badge.next{color:var(--series-1);border-color:var(--series-1)}
+  .swipe{display:none;font-size:12px;color:var(--muted);margin:8px 0 0}
+  @media (max-width:860px){ .swipe{display:block} }
+
+  /* ---- record / needs ---- */
+  .mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+  .mini>div{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  .mini .k{font-size:11px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:4px}
+  .mini .v{font-size:20px;font-weight:650;letter-spacing:-0.01em}
+  .mini .s{font-size:12px;color:var(--muted);margin-top:3px}
+  .need{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding:13px 0;border-bottom:1px solid var(--grid)}
+  .need:last-child{border-bottom:none}
+  .need .lbl{font-size:14px;color:var(--ink-2);flex:1;min-width:210px}
+  .need .big{font-size:22px;font-weight:650;letter-spacing:-0.01em}
+  .need .alt{font-size:13px;color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Trading Ladder Tracker</h1>
+  <p class="sub">Log what you put in and what you got back. Everything else is worked out for you.</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <!-- ============ LOG A TRADE ============ -->
+  <div class="card">
+    <h2>Log a trade</h2>
+    <p class="hint">Two numbers and you're done.</p>
+    <div class="form">
+      <div>
+        <label for="startIn">1 &nbsp;What you put in
+          <span class="q">Filled in for you from your last trade.</span>
+        </label>
+        <div class="money"><span>£</span><input id="startIn" class="hasclr" type="number" step="0.01" min="0" inputmode="decimal"><button type="button" class="clr" data-clr="startIn" title="Clear">&times;</button></div>
+      </div>
+      <div>
+        <label for="finishIn">2 &nbsp;What you finished with
+          <span class="q">The total value when you closed, not the profit.</span>
+        </label>
+        <div class="money"><span>£</span><input id="finishIn" class="hasclr" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00"><button type="button" class="clr" data-clr="finishIn" title="Clear">&times;</button></div>
+      </div>
+      <div class="orbox">
+        <label for="multIn">…or the multiplier you got
+          <span class="q">Fill in either box — the other fills itself.</span>
+        </label>
+        <div class="ifield">
+          <input id="multIn" class="mult hasclr" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00x">
+          <button type="button" class="clr" data-clr="multIn" title="Clear">&times;</button>
+        </div>
+      </div>
+      <div class="row" style="align-items:end;flex-wrap:nowrap;gap:8px">
+        <button class="primary" id="addBtn" disabled>Save trade</button>
+        <button class="ghost" id="clearForm2" title="Empty every box on this form"
+                style="padding:13px 16px;font-size:14px">Clear</button>
+      </div>
+    </div>
+
+    <div class="preview" id="preview">Enter what you finished with — or the multiplier — and I'll show you the split before you save.</div>
+    <p class="found" id="mechNote" style="margin-top:10px"></p>
+
+    <div style="margin-top:18px">
+      <div>
+        <label for="catPick">What did you trade?
+          <span class="q">Pick a category, then the market. Or search to jump straight to one.</span></label>
+        <div class="ifield" style="margin-bottom:10px;max-width:760px">
+          <input id="mktSearch" type="text" class="plain hasclr" autocomplete="off" placeholder="Search all markets…">
+          <button type="button" class="clr" data-clr="mktSearch" title="Clear the search">&times;</button>
+        </div>
+        <div class="mktrow">
+          <select id="catPick"></select>
+          <div class="ifield">
+            <select id="mktPick" style="padding-right:62px"></select>
+            <button type="button" class="clr" data-clr="mktPick" title="Clear the market">&times;</button>
+          </div>
+        </div>
+        <p class="found" id="mktFound"></p>
+        <div class="cmcbar" id="cmcBar"></div>
+      </div>
+    </div>
+
+    <div class="form bankrow" style="margin-top:16px">
+      <div>
+        <label for="deployIn">How much of the pot goes in?
+          <span class="q">Staking the lot means one loss ends the ladder.</span></label>
+        <select id="deployIn"></select>
+      </div>
+      <div>
+        <label for="bankIn">How much of the close do you bank?
+          <span class="q">The rest rolls into the next trade.</span></label>
+        <select id="bankIn"></select>
+      </div>
+      <div>
+        <label for="dateIn">Date</label>
+        <div class="ifield">
+          <input id="dateIn" class="plain" type="date">
+          <button type="button" class="ghost" id="todayBtn"
+                  style="position:absolute;right:38px;top:8px;bottom:8px;padding:0 10px;font-size:12px">Today</button>
+        </div>
+      </div>
+      <div class="row" style="align-items:end">
+        <button class="ghost" id="openBtn" style="padding:13px 18px;font-size:14px" disabled>Still open &mdash; log it anyway</button>
+      </div>
+    </div>
+
+    <details class="box">
+      <summary>Add or take out money</summary>
+      <div class="form cash" style="padding-bottom:8px">
+        <div>
+          <label for="cashAmt">How much</label>
+          <div class="money"><span>£</span><input id="cashAmt" class="hasclr" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0.00"><button type="button" class="clr" data-clr="cashAmt" title="Clear">&times;</button></div>
+        </div>
+        <div>
+          <label for="cashDir">In or out</label>
+          <select id="cashDir">
+            <option value="in">Paying money in</option>
+            <option value="out">Taking money out</option>
+          </select>
+        </div>
+        <div>
+          <label for="cashPot">Which pot</label>
+          <select id="cashPot">
+            <option value="capital">Trading capital</option>
+            <option value="safe">Safe haven</option>
+          </select>
+        </div>
+        <button class="ghost" id="cashBtn" style="padding:13px 18px;font-size:14px">Record it</button>
+      </div>
+      <p class="hint" style="margin:0 0 16px">Keeps your growth figure honest — money you paid in isn't money you made.</p>
+    </details>
+  </div>
+
+  <!-- ============ WHAT THE NEXT TRADE NEEDS ============ -->
+  <details class="sect" id="secNeeds" open>
+    <summary><span class="stitle">What the next trade needs</span><span class="ssum" id="sumNeeds"></span></summary>
+    <div class="sbody">
+      <p class="hint">Assuming you stake the <span id="needStake">&mdash;</span> you have free.</p>
+      <div id="needs"></div>
+    </div>
+  </details>
+
+  <!-- ============ CHARTS ============ -->
+  <div class="two">
+    <details class="sect" id="secEquity" style="margin-bottom:0">
+      <summary><span class="stitle">Total money, entry by entry</span><span class="ssum" id="sumEquity"></span></summary>
+      <div class="sbody">
+      <p class="hint">Banked plus what's still in play, with your projection carrying on from today.</p>
+      <div class="legend">
+        <span><i style="border-top:2px solid var(--series-1)"></i>Your actual</span>
+        <span><i style="border-top:2px dashed var(--muted)"></i><span id="legTarget">Projection</span></span>
+      </div>
+      <svg id="equityChart" viewBox="0 0 640 300" role="img" aria-label="Total money by entry"></svg>
+      </div>
+    </details>
+    <details class="sect" id="secMult" style="margin-bottom:0">
+      <summary><span class="stitle">How many times you multiplied</span><span class="ssum" id="sumMult"></span></summary>
+      <div class="sbody">
+      <p class="hint">Each bar is one closed trade. The dashed line is your goal; under 1x means that trade lost money.</p>
+      <div class="legend">
+        <span><i style="border-top:2px solid var(--series-1)"></i>Multiplier achieved</span>
+        <span><i style="border-top:2px dashed var(--muted)"></i>Goal</span>
+      </div>
+      <svg id="multChart" viewBox="0 0 640 300" role="img" aria-label="Multiplier achieved per trade"></svg>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ PROJECTION ============ -->
+  <details class="sect" id="secProj" style="margin-top:20px">
+    <summary><span class="stitle">Projection</span><span class="ssum" id="sumProj"></span></summary>
+    <div class="sbody">
+    <p class="hint">Where the next trades take you if they go to plan. Tap the star on any line to turn it into a milestone.</p>
+
+    <div class="modes">
+      <button class="mode on" id="modeMult">Grow by a multiplier</button>
+      <button class="mode" id="modeAmt">Grow by an amount</button>
+    </div>
+
+    <div class="settings" style="padding:18px 0 6px">
+      <div>
+        <label for="pStart">Start from
+          <span class="q">Defaults to what you have free to trade.</span></label>
+        <div class="money"><span>£</span><input id="pStart" class="hasclr" type="number" step="0.01" min="0"><button type="button" class="clr" data-clr="pStart" title="Reset to what you have free">&times;</button></div>
+      </div>
+      <div id="pMultWrap">
+        <label for="pMult">Multiply by, every trade
+          <span class="q">The payoff you are aiming for on the money you stake.</span></label>
+        <input id="pMult" class="plain" type="number" step="0.05" min="1">
+      </div>
+      <div id="pAmtWrap" style="display:none">
+        <label for="pAmt">Add to your total, every trade
+          <span class="q">A flat profit target per trade.</span></label>
+        <div class="money"><span>£</span><input id="pAmt" type="number" step="100" min="0"></div>
+      </div>
+      <div>
+        <label for="pCount">How many trades ahead
+          <span class="q">Up to 25.</span></label>
+        <input id="pCount" class="plain" type="number" min="1" max="25" step="1">
+      </div>
+      <div>
+        <label for="basisIn">Judge milestones on
+          <span class="q">Which number has to reach the target.</span></label>
+        <select id="basisIn">
+          <option value="equity">Total money</option>
+          <option value="banked">Safe haven only</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="odds" id="odds"></div>
+
+    <div class="row" style="margin:8px 0 16px">
+      <label for="goalIn" style="margin:0;font-weight:400;font-size:13px;color:var(--ink-2)">Goal</label>
+      <div class="ifield" style="width:150px">
+        <div class="money"><span>£</span><input id="goalIn" class="hasclr" type="number" step="1000" min="0"
+             style="padding:8px 14px 8px 26px;font-size:14px"></div>
+      </div>
+      <label for="hitIn" style="margin:0;font-weight:400;font-size:13px;color:var(--ink-2)">at a hit rate of</label>
+      <select id="hitIn" style="width:auto;padding:8px 10px;font-size:13px"></select>
+      <button class="ghost" id="allTargets">&#9733; Make every line a milestone</button>
+      <button class="ghost" id="noTargets">Clear all milestones</button>
+      <button class="ghost" id="projReset">Reset the projection</button>
+    </div>
+
+    <div class="scroll">
+      <table id="ptbl">
+        <thead><tr>
+          <th>Trade</th><th>Pot</th><th>Stake</th><th>Finish with</th><th>Mult needed</th>
+          <th>Banked</th><th>Pot after</th><th>Safe haven</th><th>Total money</th><th>Milestone</th>
+        </tr></thead>
+        <tbody id="pbody"></tbody>
+      </table>
+    </div>
+    <p class="swipe">Swipe the table sideways to reach the star column.</p>
+    </div>
+  </details>
+
+  <!-- ============ MILESTONES ============ -->
+  <details class="sect" id="secMs">
+    <summary><span class="stitle">Milestones</span><span class="ssum" id="sumMs"></span></summary>
+    <div class="sbody">
+      <p class="hint">Fixed once you set them &mdash; logging a trade moves you towards them, it doesn't move the goalposts.</p>
+      <div id="msList"></div>
+    </div>
+  </details>
+
+  <!-- ============ RECORD + BY MARKET ============ -->
+  <div class="two">
+    <details class="sect" id="secRecord" style="margin-bottom:0">
+      <summary><span class="stitle">Your record</span><span class="ssum" id="sumRecord"></span></summary>
+      <div class="sbody">
+        <p class="hint">The honest read on whether the goal above matches how you actually trade.</p>
+        <div class="mini" id="record"></div>
+      </div>
+    </details>
+    <details class="sect" id="secByMkt" style="margin-bottom:0">
+      <summary><span class="stitle">By market</span><span class="ssum" id="sumByMkt"></span></summary>
+      <div class="sbody">
+        <p class="hint">Where your multipliers actually come from.</p>
+        <div class="scroll" id="byMktWrap"></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ ENTRIES ============ -->
+  <details class="sect" id="secEntries" style="margin-top:20px">
+    <summary><span class="stitle">Your entries</span><span class="ssum" id="sumEntries"></span></summary>
+    <div class="sbody">
+    <p class="hint">Newest at the bottom. Hit &times; to remove a row &mdash; everything below it recalculates.</p>
+    <div class="scroll">
+      <table id="tbl">
+        <thead><tr>
+          <th>#</th><th>Date</th><th>What</th><th>Put in</th><th>Finished</th>
+          <th>Mult</th><th>Profit</th><th>Banked</th><th>Rolls on</th>
+          <th>Safe haven</th><th>Total money</th><th></th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    </div>
+  </details>
+
+  <!-- ============ SETTINGS ============ -->
+  <details>
+    <summary>Settings &amp; your data</summary>
+    <div class="settings">
+      <div>
+        <label for="capIn">Starting capital</label>
+        <div class="money"><span>£</span><input id="capIn" type="number" step="0.01" min="0"></div>
+      </div>
+      <div>
+        <label for="splitIn">Share of the close you bank (%)</label>
+        <input id="splitIn" class="plain" type="number" step="1" min="0" max="100">
+      </div>
+      <div>
+        <label for="protectIn" style="margin-bottom:10px">Protect your stake</label>
+        <label style="font-weight:400;font-size:13px">
+          <input id="protectIn" type="checkbox" style="width:auto;margin-right:8px;transform:scale(1.2)">
+          Never bank more than the profit
+        </label>
+      </div>
+    </div>
+    <div class="note" id="planNote"></div>
+    <div class="row" style="padding:16px 0 20px">
+      <button class="ghost" id="saveFile">Download my data</button>
+      <button class="ghost" id="loadBtn">Load a data file</button>
+      <button class="ghost" id="csvBtn">Export to spreadsheet (CSV)</button>
+      <button class="ghost" id="mktReset">Forget my custom markets</button>
+      <button class="ghost danger" id="resetBtn">Clear all entries</button>
+      <input type="file" id="fileIn" accept=".json" style="display:none">
+      <span class="saved" id="savedMsg">Saved</span>
+    </div>
+  </details>
+
+  <div class="note">
+    <b>How the split works.</b> When you close a trade, a share of the total you finished with is moved to
+    <b>safe haven</b> and never traded again; the rest rolls into your next trade. You set that share on each
+    trade, alongside how much of the pot you stake in the first place. Banking less grows the pot faster;
+    banking more locks away more. Both are saved with each trade, so changing them later never rewrites
+    your history.
+    <br><br>
+    <b>Where your data lives.</b> Save this file to your computer and open it from there — your entries stay in
+    the page. Use <b>Download my data</b> now and then for a proper backup. Nothing is ever sent anywhere.
+    <br><br>
+    This is a calculator, not financial advice — I'm not a financial adviser. It works out the arithmetic of the
+    plan you gave it; whether the plan is achievable is a separate question, and a long run of trades all
+    reaching their target is a very demanding assumption. The odds figure in the Projection is only ever as
+    good as the hit rate you feed it.
+  </div>
+</div>
+
+<div class="tip" id="tip"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= storage (never throws) ================= */
+var KEY="tradingTracker.v2";
+function store(k,v){try{window.localStorage.setItem(k,v);}catch(e){}}
+function fetchStore(k){try{return window.localStorage.getItem(k);}catch(e){return null;}}
+
+var DB={
+"Indices":["AEX 25","ASX 200","Bovespa","CAC 40","DAX 40","Dow Jones 30","EURO STOXX 50",
+ "FTSE 100","FTSE 250","FTSE MIB","Hang Seng","IBEX 35","KOSPI","NASDAQ 100","Nifty 50",
+ "Nikkei 225","OMX Stockholm 30","Russell 2000","S&P 500","Sensex","Shanghai Composite",
+ "SMI 20","S&P/TSX 60","US Dollar Index","VIX"],
+"Forex":["AUD/CAD","AUD/CHF","AUD/JPY","AUD/NZD","AUD/USD","CAD/CHF","CAD/JPY","CHF/JPY",
+ "EUR/AUD","EUR/CAD","EUR/CHF","EUR/GBP","EUR/JPY","EUR/NOK","EUR/NZD","EUR/PLN","EUR/SEK",
+ "EUR/TRY","EUR/USD","GBP/AUD","GBP/CAD","GBP/CHF","GBP/JPY","GBP/NZD","GBP/USD","NZD/CAD",
+ "NZD/CHF","NZD/JPY","NZD/USD","USD/CAD","USD/CHF","USD/CNH","USD/HKD","USD/INR","USD/JPY",
+ "USD/MXN","USD/NOK","USD/PLN","USD/SEK","USD/SGD","USD/TRY","USD/ZAR"],
+"Crypto":["Aave (AAVE)", "Aerodrome Finance (AERO)", "Algorand (ALGO)", "Aptos (APT)", "Arbitrum (ARB)",
+  "Artificial Superintelligence (FET)", "Aster (ASTER)", "Avalanche (AVAX)", "Bitcoin (BTC)",
+  "Bitcoin Cash (BCH)", "Bitcoin SV (BSV)", "Bitget Token (BGB)", "Bittensor (TAO)", "BNB (BNB)",
+  "Canton (CC)", "Cardano (ADA)", "Chainlink (LINK)", "Cosmos (ATOM)", "Cronos (CRO)", "Curve DAO (CRV)",
+  "Dai (DAI)", "Dash (DASH)", "Dogecoin (DOGE)", "Ethena (ENA)", "Ethena USDe (USDe)", "ether.fi (ETHFI)",
+  "Ethereum (ETH)", "Ethereum Classic (ETC)", "EURC (EURC)", "Filecoin (FIL)",
+  "First Digital USD (FDUSD)", "Flare (FLR)", "GateToken (GT)", "Global Dollar (USDG)",
+  "Gram (Toncoin) (GRAM)", "Hedera (HBAR)", "Humanity (H)", "Hyperliquid (HYPE)", "Immutable (IMX)",
+  "Injective (INJ)", "Internet Computer (ICP)", "Jito (JTO)", "Jupiter (JUP)", "JUST (JST)",
+  "Kaspa (KAS)", "KuCoin Token (KCS)", "LayerZero (ZRO)", "Lido DAO (LDO)", "Lighter (LIT)",
+  "Litecoin (LTC)", "Mantle (MNT)", "MemeCore (M)", "Midnight (NIGHT)", "Monero (XMR)", "Morpho (MORPHO)",
+  "NEAR Protocol (NEAR)", "Nexo (NEXO)", "OFFICIAL TRUMP (TRUMP)", "OKB (OKB)", "Ondo (ONDO)",
+  "Optimism (OP)", "PancakeSwap (CAKE)", "PAX Gold (PAXG)", "PayPal USD (PYUSD)", "Pepe (PEPE)",
+  "Pi (PI)", "Polkadot (DOT)", "Polygon (POL)", "Pudgy Penguins (PENGU)", "Pump.fun (PUMP)",
+  "Pyth Network (PYTH)", "Quant (QNT)", "Render (RENDER)", "Ripple USD (RLUSD)", "Sei (SEI)",
+  "Shiba Inu (SHIB)", "Sky (SKY)", "Solana (SOL)", "SPX6900 (SPX)", "Stable (STABLE)", "Stellar (XLM)",
+  "Sui (SUI)", "Sun (SUN)", "Tether (USDT)", "Tether Gold (XAUt)", "Tezos (XTZ)", "TRON (TRX)",
+  "TrueUSD (TUSD)", "Uniswap (UNI)", "United Stables (U)", "UNUS SED LEO (LEO)", "USDC (USDC)",
+  "USDD (USDD)", "VeChain (VET)", "Velvet (VELVET)", "Venice Token (VVV)", "Virtuals Protocol (VIRTUAL)",
+  "World Liberty Financial (WLFI)", "World Liberty Financial USD (USD1)", "Worldcoin (WLD)",
+  "XDC Network (XDC)", "XRP (XRP)", "Zcash (ZEC)"],
+"Commodities":["Aluminium","Brent Crude","Cocoa","Coffee","Copper","Corn","Cotton","Gasoline",
+ "Gold","Heating Oil","Iron Ore","Lean Hogs","Live Cattle","Lumber","Natural Gas","Nickel",
+ "Oil (WTI)","Orange Juice","Palladium","Platinum","Rice","Silver","Soybeans","Sugar",
+ "Uranium","Wheat","Zinc"],
+"Stocks — US":["3M", "A. O. Smith", "Abbott Laboratories", "AbbVie", "Accenture", "Adobe",
+  "Advanced Micro Devices", "AES Corporation", "Aflac", "Agilent Technologies", "Air Products",
+  "Airbnb", "Akamai Technologies", "Albemarle", "Alexandria Real Estate Equities", "Align Technology",
+  "Allegion", "Alliant Energy", "Allstate", "Alphabet (Google)", "Altria", "Amazon", "Amcor",
+  "Ameren", "American Electric Power", "American Express", "American International Group",
+  "American Tower", "American Water Works", "Ameriprise Financial", "Ametek", "Amgen", "Amphenol",
+  "Analog Devices", "Aon", "APA Corporation", "Apollo Global Management", "Apple",
+  "Applied Materials", "AppLovin", "Aptiv", "Arch Capital Group", "Archer Daniels Midland",
+  "Ares Management", "Arista Networks", "Arthur J. Gallagher", "Assurant", "AT&T", "Atmos Energy",
+  "Autodesk", "Automatic Data Processing", "AutoZone", "AvalonBay Communities", "Avery Dennison",
+  "Axon Enterprise", "Baker Hughes", "Ball Corporation", "Bank of America", "Baxter International",
+  "Becton Dickinson", "Berkshire Hathaway", "Best Buy", "Bio-Techne", "Biogen", "BlackRock",
+  "Blackstone", "Block", "BNY Mellon", "Boeing", "Booking Holdings", "Boston Scientific",
+  "Bristol Myers Squibb", "Broadcom", "Broadridge Financial Solutions", "Brown & Brown",
+  "Brown-Forman", "Builders FirstSource", "Bunge Global", "BXP", "C.H. Robinson",
+  "Cadence Design Systems", "Camden Property Trust", "Campbell's", "Capital One", "Cardinal Health",
+  "Carnival", "Carrier Global", "Carvana", "Casey's", "Caterpillar", "Cboe Global Markets",
+  "CBRE Group", "CDW", "Cencora", "Centene", "CenterPoint Energy", "CF Industries",
+  "Charles River Laboratories", "Charles Schwab", "Charter Communications", "Chevron",
+  "Chipotle Mexican Grill", "Chubb", "Church & Dwight", "Ciena", "Cigna", "Cincinnati Financial",
+  "Cintas", "Cisco", "Citigroup", "Citizens Financial Group", "Clorox", "CME Group", "CMS Energy",
+  "Coca-Cola", "Cognizant", "Coherent", "Coinbase", "Colgate-Palmolive", "Comcast",
+  "Comfort Systems USA", "Conagra Brands", "ConocoPhillips", "Consolidated Edison",
+  "Constellation Brands", "Constellation Energy", "Cooper Companies", "Copart", "Corning", "Corpay",
+  "Corteva", "CoStar Group", "Costco", "CRH", "CrowdStrike", "Crown Castle", "CSX", "Cummins",
+  "CVS Health", "D. R. Horton", "Danaher", "Darden Restaurants", "Datadog", "DaVita",
+  "Deckers Brands", "Deere & Company", "Dell Technologies", "Delta Air Lines", "Devon Energy",
+  "Dexcom", "Diamondback Energy", "Digital Realty", "Dollar General", "Dollar Tree",
+  "Dominion Energy", "Domino's", "DoorDash", "Dover", "Dow", "DTE Energy", "Duke Energy", "DuPont",
+  "Eaton", "eBay", "EchoStar", "Ecolab", "Edison International", "Edwards Lifesciences",
+  "Electronic Arts", "Elevance Health", "Eli Lilly", "Emcor", "Emerson Electric", "Entergy",
+  "EOG Resources", "EPAM Systems", "EQT Corporation", "Equifax", "Equinix", "Equity Residential",
+  "Erie Indemnity", "Essex Property Trust", "Estee Lauder", "Everest Group", "Evergy",
+  "Eversource Energy", "Exelon", "Expand Energy", "Expedia Group", "Expeditors International",
+  "Extra Space Storage", "ExxonMobil", "F5", "FactSet", "Fair Isaac", "Fastenal",
+  "Federal Realty Investment Trust", "FedEx", "Fidelity National Information Services",
+  "Fifth Third Bancorp", "First Solar", "FirstEnergy", "Fiserv", "Ford", "Fortinet", "Fortive",
+  "Fox Corporation", "Franklin Resources", "Freeport-McMoRan", "Garmin", "Gartner", "GE Aerospace",
+  "GE HealthCare", "GE Vernova", "Gen Digital", "Generac", "General Dynamics", "General Mills",
+  "General Motors", "Genuine Parts", "Gilead Sciences", "Global Payments", "Globe Life", "GoDaddy",
+  "Goldman Sachs", "Halliburton", "Hartford", "Hasbro", "HCA Healthcare", "Healthpeak Properties",
+  "Henry Schein", "Hershey", "Hewlett Packard Enterprise", "Hilton Worldwide", "Home Depot",
+  "Honeywell", "Hormel Foods", "Host Hotels & Resorts", "Howmet Aerospace", "HP", "Hubbell", "Humana",
+  "Huntington Bancshares", "Huntington Ingalls Industries", "IBM", "IDEX Corporation",
+  "Idexx Laboratories", "Illinois Tool Works", "Incyte", "Ingersoll Rand", "Insulet", "Intel",
+  "Interactive Brokers", "Intercontinental Exchange", "International Flavors & Fragrances",
+  "International Paper", "Intuit", "Intuitive Surgical", "Invesco", "Invitation Homes", "IQVIA",
+  "Iron Mountain", "J.B. Hunt", "J.M. Smucker", "Jabil", "Jack Henry & Associates",
+  "Jacobs Solutions", "Johnson & Johnson", "Johnson Controls", "JPMorgan Chase", "Kenvue",
+  "Keurig Dr Pepper", "KeyCorp", "Keysight Technologies", "Kimberly-Clark", "Kimco Realty",
+  "Kinder Morgan", "KKR", "KLA Corporation", "Kraft Heinz", "Kroger", "L3Harris", "Labcorp",
+  "Lam Research", "Las Vegas Sands", "Leidos", "Lennar", "Lennox International", "Linde",
+  "Live Nation Entertainment", "Lockheed Martin", "Loews", "Lowe's", "Lululemon Athletica",
+  "Lumentum", "LyondellBasell", "M&T Bank", "Marathon Petroleum", "Marriott International",
+  "Marsh McLennan", "Martin Marietta Materials", "Masco", "Mastercard", "McCormick", "McDonald's",
+  "McKesson", "Medtronic", "Merck", "Meta Platforms", "MetLife", "Mettler Toledo", "MGM Resorts",
+  "Microchip Technology", "Micron Technology", "Microsoft", "Mid-America Apartment Communities",
+  "Moderna", "Molson Coors", "Mondelez International", "Monolithic Power Systems", "Monster Beverage",
+  "Moody's", "Morgan Stanley", "Mosaic", "Motorola Solutions", "MSCI", "Nasdaq", "NetApp", "Netflix",
+  "Newmont", "News Corp", "NextEra Energy", "Nike", "NiSource", "Nordson", "Norfolk Southern",
+  "Northern Trust", "Northrop Grumman", "Norwegian Cruise Line", "NRG Energy", "Nucor", "Nvidia",
+  "NVR", "NXP Semiconductors", "O'Reilly Automotive", "Occidental Petroleum", "Old Dominion",
+  "Omnicom Group", "ON Semiconductor", "Oneok", "Oracle", "Otis Worldwide", "Paccar",
+  "Packaging Corporation of America", "Palantir Technologies", "Palo Alto Networks",
+  "Paramount Skydance", "Parker Hannifin", "Paychex", "PayPal", "Pentair", "PepsiCo", "Pfizer",
+  "PG&E", "Philip Morris International", "Phillips 66", "Pinnacle West Capital",
+  "PNC Financial Services", "Pool Corporation", "PPG Industries", "PPL Corporation",
+  "Principal Financial Group", "Procter & Gamble", "Progressive", "Prologis", "Prudential Financial",
+  "PTC", "Public Service Enterprise Group", "Public Storage", "PulteGroup", "Qnity Electronics",
+  "Qualcomm", "Quanta Services", "Quest Diagnostics", "Ralph Lauren", "Raymond James Financial",
+  "Realty Income", "Regency Centers", "Regeneron Pharmaceuticals", "Regions Financial",
+  "Republic Services", "ResMed", "Revvity", "Robinhood Markets", "Rockwell Automation", "Rollins",
+  "Roper Technologies", "Ross Stores", "Royal Caribbean", "RTX Corporation", "S&P Global",
+  "Salesforce", "Sandisk", "SBA Communications", "Schlumberger", "Seagate Technology", "Sempra",
+  "ServiceNow", "Sherwin-Williams", "Simon Property Group", "Skyworks Solutions", "Smurfit Westrock",
+  "Snap-on", "Solventum", "Southern Company", "Southwest Airlines", "Stanley Black & Decker",
+  "Starbucks", "State Street", "Steel Dynamics", "Steris", "Stryker", "Supermicro",
+  "Synchrony Financial", "Synopsys", "Sysco", "T-Mobile US", "T. Rowe Price", "Take-Two Interactive",
+  "Tapestry", "Targa Resources", "Target", "TE Connectivity", "Teledyne Technologies", "Teradyne",
+  "Tesla", "Texas Instruments", "Texas Pacific Land", "Textron", "Thermo Fisher Scientific",
+  "TJX Companies", "TKO Group Holdings", "Tractor Supply", "Trade Desk", "Trane Technologies",
+  "TransDigm Group", "Travelers", "Trimble", "Truist Financial", "Tyler Technologies", "Tyson Foods",
+  "U.S. Bancorp", "Uber", "UDR", "Ulta Beauty", "Union Pacific", "United Airlines",
+  "United Parcel Service", "United Rentals", "UnitedHealth Group", "Universal Health Services",
+  "Valero Energy", "Veeva Systems", "Ventas", "Veralto", "Verisign", "Verisk Analytics", "Verizon",
+  "Vertex Pharmaceuticals", "Vertiv", "Viatris", "Vici Properties", "Visa", "Vistra",
+  "Vulcan Materials", "W. R. Berkley", "W. W. Grainger", "Wabtec", "Walmart", "Walt Disney",
+  "Warner Bros. Discovery", "Waste Management", "Waters Corporation", "WEC Energy Group",
+  "Wells Fargo", "Welltower", "West Pharmaceutical Services", "Western Digital", "Weyerhaeuser",
+  "Williams Companies", "Williams-Sonoma", "Willis Towers Watson", "Workday", "Wynn Resorts",
+  "Xcel Energy", "Xylem", "Yum! Brands", "Zebra Technologies", "Zimmer Biomet", "Zoetis"],
+"Stocks — UK":["3i Group", "3i Infrastructure", "4imprint", "A.G. Barr", "Aberdeen Asia Focus", "Aberdeen Group",
+  "Aberforth Smaller Companies Trust", "Admiral Group", "AEP Plantations", "Airtel Africa", "AJ Bell",
+  "Alfa Financial Software", "Allianz Technology Trust", "Anglo American", "Antofagasta", "AO World",
+  "Applied Nutrition", "Ashmore Group", "Ashoka India Equity Investment Trust", "Ashtead Group",
+  "Associated British Foods", "Aston Martin Lagonda", "AstraZeneca", "Atalaya Mining",
+  "Auto Trader Group", "AVI Global Trust", "Aviva", "Avon Technologies", "B&M",
+  "Babcock International", "BAE Systems", "Baillie Gifford Japan Trust",
+  "Baillie Gifford US Growth Trust", "Balfour Beatty", "Baltic Classifieds",
+  "Bankers Investment Trust", "Barclays", "Barratt Redrow", "Beazley", "Bellway", "Berkeley Group",
+  "BH Macro", "Big Yellow Group", "Biopharma Credit", "BlackRock Greater Europe Investment Trust",
+  "BlackRock Smaller Companies Trust", "BlackRock World Mining Trust", "Bluefield Solar Income Fund",
+  "Bodycote", "BP", "Breedon Group", "Bridgepoint Group", "British American Tobacco", "British Land",
+  "Brunner Investment Trust", "BT Group", "Bunzl", "Burberry", "Bytes Technology Group", "C&C Group",
+  "Caledonia Investments", "Capital Gearing Trust", "Carnival Corporation & plc", "Centrica",
+  "Ceres Power", "Chemring Group", "Chesnara", "Chrysalis Investments",
+  "City of London Investment Trust", "Clarkson", "Close Brothers Group", "CMC Markets", "Coats Group",
+  "Coca-Cola HBC", "Compass Group", "Computacenter", "Convatec", "Costain Group", "Cranswick",
+  "Croda International", "Currys", "CVS Group", "DCC", "Derwent London", "Diageo", "Diploma",
+  "discoverIE", "Domino's Pizza", "Dr. Martens", "Drax Group", "Dunelm Group", "easyJet",
+  "Edinburgh Investment Trust", "Edinburgh Worldwide Investment Trust", "Elementis",
+  "Endeavour Mining", "Energean", "Entain", "European Smaller Companies Trust", "Eurowag", "Experian",
+  "F&C Investment Trust", "Fidelity China Special Situations", "Fidelity Emerging Markets",
+  "Fidelity European Trust", "Fidelity Special Values", "Finsbury Growth & Income Trust",
+  "FirstGroup", "Foresight Environmental Infrastructure", "Foresight Group", "Frasers Group",
+  "Fresnillo", "Funding Circle", "Galliford Try", "Games Workshop", "Gamma Communications",
+  "GB Group", "GCP Infrastructure Investments", "Genuit Group", "Genus", "Glencore",
+  "Global Smaller Companies Trust", "Goodwin", "Grafton Group", "Grainger", "Great Portland Estates",
+  "Greencoat UK Wind", "Greencore", "Greggs", "GSK", "Haleon", "Halma", "Hammerson", "Harbour Energy",
+  "HarbourVest Global Private Equity", "Harworth Group", "Hays", "Helios Towers",
+  "Henderson Far East Income", "Henderson Smaller Companies Investment Trust",
+  "Herald Investment Trust", "Hg Capital Trust", "HICL Infrastructure Company",
+  "Hikma Pharmaceuticals", "Hill & Smith", "Hilton Food Group", "Hochschild Mining",
+  "Hollywood Bowl Group", "Howden Joinery", "HSBC Holdings", "Hunting", "Ibstock",
+  "ICG Enterprise Trust", "IMI", "Impax Environmental Markets", "Imperial Brands", "Inchcape",
+  "Informa", "IntegraFin Holdings", "InterContinental Hotels Group", "Intermediate Capital Group",
+  "International Airlines Group", "International Personal Finance",
+  "International Public Partnerships", "International Workplace Group", "Intertek",
+  "Invesco Asia Dragon Trust", "Investec", "IP Group", "Ithaca Energy", "ITV", "JD Sports Fashion",
+  "Johnson Matthey", "Johnson Service Group", "JPMorgan American Investment Trust",
+  "JPMorgan Claverhouse Investment Trust", "JPMorgan Emerging Markets Dividend Income",
+  "JPMorgan Emerging Markets Growth & Income", "JPMorgan European Discovery",
+  "JPMorgan European Growth & Income", "JPMorgan Global Growth & Income",
+  "JPMorgan India Growth & Income", "JPMorgan Japanese Investment Trust", "JTC",
+  "Jupiter Fund Management", "Kainos", "Keller Group", "Kier Group", "Kingfisher",
+  "Lancashire Holdings", "Land Securities", "Law Debenture", "Legal & General",
+  "Lloyds Banking Group", "London Stock Exchange Group", "LondonMetric Property", "M&G", "Man Group",
+  "Marks & Spencer", "Marshalls", "ME Group International", "Melrose Industries",
+  "Mercantile Investment Trust", "Merchants Trust", "Metro Bank", "Mitchells & Butlers", "Mitie",
+  "Molten Ventures", "Mondi", "Monks Investment Trust", "MONY Group", "Moonpig",
+  "Morgan Advanced Materials", "Morgan Sindall Group", "Murray Income Trust",
+  "Murray International Trust", "National Grid", "NatWest Group", "NB Private Equity Partners",
+  "NCC Group", "Next", "Ninety One", "North Atlantic Smaller Companies Investment Trust",
+  "Oakley Capital Investments", "Ocado Group", "OSB Group", "Oxford Biomedica", "Oxford Instruments",
+  "Oxford Nanopore Technologies", "Pacific Horizon Investment Trust", "PageGroup",
+  "Pan African Resources", "Pantheon Infrastructure", "Pantheon International",
+  "Paragon Banking Group", "Partners Group Private Equity", "Patria Private Equity Trust", "Pearson",
+  "Pennon Group", "Pershing Square Holdings", "Persimmon", "Personal Assets Trust", "Pets at Home",
+  "Phoenix Group", "Playtech", "Plus500", "Polar Capital Global Healthcare Trust",
+  "Polar Capital Technology Trust", "Pollen Street Group", "PPHE Hotel Group", "Premier Foods",
+  "Primary Health Properties", "Princes Group", "Prudential", "Qinetiq", "Quilter", "Rank Group",
+  "Raspberry Pi Holdings", "Rathbones", "Reckitt Benckiser", "RELX", "Renishaw", "Rentokil Initial",
+  "RHI Magnesita", "Rightmove", "Rio Tinto", "RIT Capital Partners", "Rolls-Royce Holdings", "Rotork",
+  "RS Group", "RTW Biotech Opportunities", "Ruffer Investment Company", "Safestore", "Saga",
+  "Sage Group", "Sainsbury's", "Savills", "Schiehallion Fund",
+  "Schroder Asian Total Return Investment Company", "Schroder AsiaPacific Fund",
+  "Schroder Oriental Income Fund", "Schroders", "Scottish American Investment Company",
+  "Scottish Mortgage Investment Trust", "SDCL Energy Efficiency Income Trust", "Segro", "Senior",
+  "Sequoia Economic Infrastructure Income Fund", "Serco", "Severn Trent", "Shaftesbury Capital",
+  "Shawbrook Bank", "Shell", "Sirius Real Estate", "Smith & Nephew", "Smiths Group", "Softcat",
+  "Spirax Group", "Spire Healthcare", "SSE", "SSP Group", "St James's Place", "Standard Chartered",
+  "Supermarket Income REIT", "Syncona", "Target Healthcare REIT", "Tate & Lyle", "Taylor Wimpey",
+  "TBC Bank", "Telecom Plus", "Temple Bar Investment Trust",
+  "Templeton Emerging Markets Investment Trust", "Tesco", "The Renewables Infrastructure Group",
+  "THG", "TP ICAP", "TR Property Investment Trust", "Trainline", "Travis Perkins", "Trustpilot",
+  "Twentyfour Income Fund", "Unilever", "Unite Group", "United Utilities", "Utilico Emerging Markets",
+  "Vesuvius", "Victrex", "Vietnam Enterprise Investments", "VinaCapital Vietnam Opportunity Fund",
+  "Vistry Group", "Vodafone Group", "Volution Group", "Watches of Switzerland", "Weir Group",
+  "Wetherspoons", "Whitbread", "WHSmith", "Wickes", "Wizz Air", "Workspace Group",
+  "Worldwide Healthcare Trust", "WPP", "XPS Pensions", "Zigup"],
+"Stocks — Europe & Asia":["Adidas", "Airbus", "Alibaba", "Allianz", "Anheuser-Busch InBev", "Arm Holdings", "ASML", "Baidu",
+  "BASF", "Bayer", "BMW", "BNP Paribas", "BYD", "Deutsche Bank", "Deutsche Telekom",
+  "EssilorLuxottica", "Ferrari", "Hermes", "Iberdrola", "Inditex (Zara)", "Infineon", "ING Group",
+  "JD.com", "Kering", "L'Oreal", "LVMH", "Mercedes-Benz", "Nestle", "Nintendo", "Nokia", "Novartis",
+  "Novo Nordisk", "Pinduoduo (PDD)", "Porsche", "Prosus", "Richemont", "Roche", "Safran",
+  "Samsung Electronics", "Sanofi", "SAP", "Schneider Electric", "Siemens", "SoftBank", "Sony",
+  "Stellantis", "Swatch Group", "Tencent", "TotalEnergies", "Toyota", "TSMC", "UBS", "Volkswagen",
+  "Zurich Insurance"],
+"Funds & ETFs":["ARKK Innovation","EEM Emerging Markets","EFA Developed ex-US","GLD Gold Trust",
+ "HYG High Yield Bonds","ISF FTSE 100 ETF","IWM Russell 2000","QQQ NASDAQ 100","SLV Silver Trust",
+ "SPY S&P 500","TLT 20yr Treasuries","USO Oil Fund","VOO Vanguard S&P 500","VTI Total Market",
+ "VUSA Vanguard S&P 500","VWRL FTSE All-World","XLE Energy","XLF Financials","XLK Technology"]
+};
+var CMC={"Aave (AAVE)": "aave", "Aerodrome Finance (AERO)": "aerodrome-finance", "Algorand (ALGO)": "algorand",
+  "Aptos (APT)": "aptos", "Arbitrum (ARB)": "arbitrum",
+  "Artificial Superintelligence (FET)": "artificial-superintelligence-alliance", "Aster (ASTER)": "aster",
+  "Avalanche (AVAX)": "avalanche", "Bitcoin (BTC)": "bitcoin", "Bitcoin Cash (BCH)": "bitcoin-cash",
+  "Bitcoin SV (BSV)": "bitcoin-sv", "Bitget Token (BGB)": "bitget-token-new",
+  "Bittensor (TAO)": "bittensor", "BNB (BNB)": "bnb", "Canton (CC)": "canton-network",
+  "Cardano (ADA)": "cardano", "Chainlink (LINK)": "chainlink", "Cosmos (ATOM)": "cosmos",
+  "Cronos (CRO)": "cronos", "Curve DAO (CRV)": "curve-dao-token", "Dai (DAI)": "multi-collateral-dai",
+  "Dash (DASH)": "dash", "Dogecoin (DOGE)": "dogecoin", "Ethena (ENA)": "ethena",
+  "Ethena USDe (USDe)": "ethena-usde", "ether.fi (ETHFI)": "ether-fi-ethfi", "Ethereum (ETH)": "ethereum",
+  "Ethereum Classic (ETC)": "ethereum-classic", "EURC (EURC)": "euro-coin", "Filecoin (FIL)": "filecoin",
+  "First Digital USD (FDUSD)": "first-digital-usd", "Flare (FLR)": "flare", "GateToken (GT)": "gatetoken",
+  "Global Dollar (USDG)": "global-dollar-usdg", "Gram (Toncoin) (GRAM)": "gram",
+  "Hedera (HBAR)": "hedera", "Humanity (H)": "humanity-protocol", "Hyperliquid (HYPE)": "hyperliquid",
+  "Immutable (IMX)": "immutable-x", "Injective (INJ)": "injective",
+  "Internet Computer (ICP)": "internet-computer", "Jito (JTO)": "jito", "Jupiter (JUP)": "jupiter-ag",
+  "JUST (JST)": "just", "Kaspa (KAS)": "kaspa", "KuCoin Token (KCS)": "kucoin-token",
+  "LayerZero (ZRO)": "layerzero", "Lido DAO (LDO)": "lido-dao", "Lighter (LIT)": "lighter",
+  "Litecoin (LTC)": "litecoin", "Mantle (MNT)": "mantle", "MemeCore (M)": "memecore",
+  "Midnight (NIGHT)": "midnight-network", "Monero (XMR)": "monero", "Morpho (MORPHO)": "morpho",
+  "NEAR Protocol (NEAR)": "near-protocol", "Nexo (NEXO)": "nexo",
+  "OFFICIAL TRUMP (TRUMP)": "official-trump", "OKB (OKB)": "okb", "Ondo (ONDO)": "ondo-finance",
+  "Optimism (OP)": "optimism-ethereum", "PancakeSwap (CAKE)": "pancakeswap",
+  "PAX Gold (PAXG)": "pax-gold", "PayPal USD (PYUSD)": "paypal-usd", "Pepe (PEPE)": "pepe",
+  "Pi (PI)": "pi", "Polkadot (DOT)": "polkadot-new", "Polygon (POL)": "polygon-ecosystem-token",
+  "Pudgy Penguins (PENGU)": "pudgy-penguins", "Pump.fun (PUMP)": "pump-fun",
+  "Pyth Network (PYTH)": "pyth-network", "Quant (QNT)": "quant", "Render (RENDER)": "render",
+  "Ripple USD (RLUSD)": "ripple-usd", "Sei (SEI)": "sei", "Shiba Inu (SHIB)": "shiba-inu",
+  "Sky (SKY)": "sky", "Solana (SOL)": "solana", "SPX6900 (SPX)": "spx6900", "Stable (STABLE)": "stable",
+  "Stellar (XLM)": "stellar", "Sui (SUI)": "sui", "Sun (SUN)": "sun-token", "Tether (USDT)": "tether",
+  "Tether Gold (XAUt)": "tether-gold", "Tezos (XTZ)": "tezos", "TRON (TRX)": "tron",
+  "TrueUSD (TUSD)": "trueusd", "Uniswap (UNI)": "uniswap", "United Stables (U)": "united-stables",
+  "UNUS SED LEO (LEO)": "unus-sed-leo", "USDC (USDC)": "usd-coin", "USDD (USDD)": "usdd",
+  "VeChain (VET)": "vechain", "Velvet (VELVET)": "velvet", "Venice Token (VVV)": "venice-token",
+  "Virtuals Protocol (VIRTUAL)": "virtual-protocol",
+  "World Liberty Financial (WLFI)": "world-liberty-financial-wlfi",
+  "World Liberty Financial USD (USD1)": "usd1", "Worldcoin (WLD)": "worldcoin-org",
+  "XDC Network (XDC)": "xdc-network", "XRP (XRP)": "xrp", "Zcash (ZEC)": "zcash"};
+function cmcURL(name){
+  var slug=CMC[name];
+  return slug ? "https://coinmarketcap.com/currencies/"+slug+"/" : "";
+}
+var CATS=["All","Indices","Stocks — US","Stocks — UK","Stocks — Europe & Asia","Crypto","Forex","Commodities","Funds & ETFs","Yours"];
+var activeCat="All";
+function catOf(name){
+  var k,i;
+  for(k in DB) if(DB.hasOwnProperty(k)){
+    for(i=0;i<DB[k].length;i++) if(DB[k][i]===name) return k;
+  }
+  return "Yours";
+}
+function pool(){
+  var out=[],k;
+  if(activeCat==="Yours") return S.custom.slice();
+  if(activeCat!=="All") return DB[activeCat]?DB[activeCat].slice():[];
+  for(k in DB) if(DB.hasOwnProperty(k)) out=out.concat(DB[k]);
+  return out.concat(S.custom);
+}
+
+var S={
+  capital:2500,
+  split:0.33,                 /* skim a third of the close, not half */
+  deploy:0.5,                 /* stake half the pot, never all of it */
+  hitOverride:null,           /* null = use your realised hit rate */
+  goal:1000000,               /* the number the odds are measured against */
+  protect:true,
+  entries:[],                 /* {k:"trade",date,mkt,start,finish|null} | {k:"cash",date,dir,pot,amount} */
+  custom:[],                  /* names you typed in yourself */
+  proj:{ mode:"mult", start:null, count:10, mult:5, amount:2500 },
+  basis:"equity",
+  targets:[]                  /* [{v,basis}] — fixed once set */
+};
+
+/* ================= helpers ================= */
+function el(id){ return document.getElementById(id); }
+function num(e){ var v=parseFloat(e.value); return isFinite(v)?v:NaN; }
+function round2(n){ return Math.round(n*100)/100; }
+function gbp(n,dp){
+  if(!isFinite(n)) n=0;
+  if(dp===undefined) dp=(Math.abs(n)>=1000||n===Math.round(n))?0:2;
+  return (n<0?"−£":"£")+Math.abs(n).toLocaleString("en-GB",{minimumFractionDigits:dp,maximumFractionDigits:dp});
+}
+function xm(n){ return (isFinite(n)?n:0).toFixed(2)+"x"; }
+function esc(s){ return String(s).replace(/[&<>"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m];}); }
+function fmtDate(d){
+  var p=String(d).split("-"); if(p.length!==3) return esc(d);
+  return p[2]+"/"+p[1]+"/"+p[0].slice(2);
+}
+function todayISO(){
+  var d=new Date(),p=function(x){return (x<10?"0":"")+x;};
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());
+}
+function trimNum(n){
+  var t=n.toFixed(4).replace(/0+$/,"").replace(/\.$/,"");
+  return t===""?"0":t;
+}
+function shortGBP(n){
+  var d=function(v,dp){ return v.toFixed(dp).replace(/\.0$/,""); };
+  var sign=n<0?"−":""; n=Math.abs(n);
+  if(n>=1e9) return sign+"£"+d(n/1e9,n>=1e10?0:1)+"bn";
+  if(n>=1e6) return sign+"£"+d(n/1e6,n>=1e7?0:1)+"m";
+  if(n>=1e3) return sign+"£"+d(n/1e3,n>=1e4?0:1)+"k";
+  return sign+"£"+Math.round(n);
+}
+
+/* Bank `split` of the close, but (with protect on) never more than the profit —
+   so a partial win keeps your stake whole instead of eating into it. */
+function splitClose(start,finish,sp){
+  if(!isFinite(sp)) sp=S.split;
+  var bank=finish*sp;
+  if(S.protect) bank=(finish>start)?Math.min(bank,finish-start):0;
+  bank=Math.max(0,Math.min(bank,finish));
+  return { bank:bank, roll:finish-bank };
+}
+/* Presets for the dropdowns, plus whatever custom value is in play. */
+var BANKS=[0,20,25,30,33,40,50,60,66,70,75,80,100];
+var DEPLOYS=[10,20,25,33,40,50,60,75,100];
+function renderDeploy(){
+  var cur=Math.round(S.deploy*1000)/10,list=DEPLOYS.slice(),h="",i;
+  if(list.indexOf(cur)<0){ list.push(cur); list.sort(function(a,b){return a-b;}); }
+  for(i=0;i<list.length;i++){
+    var v=list[i],lab=(v%1?v.toFixed(1):v)+"%";
+    if(v===50) lab="50% (recommended)";
+    if(v===100) lab="100% — all in";
+    h+='<option value="'+v+'">'+lab+'</option>';
+  }
+  el("deployIn").innerHTML=h;
+  el("deployIn").value=String(cur);
+}
+function formDeploy(){
+  var v=parseFloat(el("deployIn").value);
+  return isFinite(v)?Math.max(0.01,Math.min(100,v))/100:S.deploy;
+}
+/* Pot multiple per winning rung, given deployment f, payoff m, skim k. */
+function rungGrowth(f,m,k){
+  var stake=f,close=stake*m,sp=splitClose(stake,close,k);
+  return 1-stake+close-sp.bank;
+}
+function renderBank(){
+  var cur=Math.round(S.split*1000)/10,list=BANKS.slice(),h="",i;
+  if(list.indexOf(cur)<0){ list.push(cur); list.sort(function(a,b){return a-b;}); }
+  for(i=0;i<list.length;i++){
+    var v=list[i],lab=(v%1?v.toFixed(1):v)+"% banked";
+    if(v===50) lab+=" (half)";
+    if(v===0) lab="Bank nothing — let it all roll";
+    if(v===100) lab=S.protect?"100% — bank all the profit, keep the stake"
+                            :"Bank everything — nothing rolls on";
+    h+='<option value="'+v+'">'+lab+'</option>';
+  }
+  el("bankIn").innerHTML=h;
+  el("bankIn").value=String(cur);
+}
+
+/* ================= the engine ================= */
+function compute(){
+  var cap=S.capital,banked=0,openStake=0,invested=S.capital,peak=S.capital;
+  var rows=[],trades=[],tn=0;
+  for(var i=0;i<S.entries.length;i++){
+    var e=S.entries[i],r={i:i,date:e.date||"",k:e.k};
+    if(e.k==="cash"){
+      var amt=(e.dir==="out"?-1:1)*(isFinite(e.amount)?e.amount:0);
+      if(e.pot==="safe") banked+=amt; else cap+=amt;
+      invested+=amt;
+      r.amount=amt; r.pot=e.pot;
+    } else {
+      var start=isFinite(e.start)?e.start:cap;
+      r.mkt=e.mkt||""; r.start=start;
+      r.split=isFinite(e.split)?e.split:S.split;
+      r.target=isFinite(e.target)?e.target:null;
+      if(e.finish===null||e.finish===undefined||!isFinite(e.finish)){
+        cap-=start; openStake+=start; r.open=true;
+      } else {
+        var sp=splitClose(start,e.finish,e.split);
+        cap=cap-start+sp.roll;
+        banked+=sp.bank;
+        tn++;
+        r.n=tn; r.finish=e.finish; r.mult=start>0?e.finish/start:0;
+        r.profit=e.finish-start; r.bank=sp.bank; r.roll=sp.roll;
+        trades.push(r);
+      }
+    }
+    r.cap=cap; r.banked=banked; r.openStake=openStake;
+    r.equity=cap+banked+openStake;
+    peak=Math.max(peak,r.equity);
+    rows.push(r);
+  }
+  return { rows:rows, trades:trades, capital:cap, banked:banked, openStake:openStake,
+           invested:invested, equity:cap+banked+openStake, peak:peak };
+}
+
+function projection(){
+  var c=compute();
+  var start=(isFinite(S.proj.start)&&S.proj.start!==null)?S.proj.start:c.capital;
+  var n=Math.max(1,Math.min(25,Math.round(S.proj.count)||1));
+  var cap=start,banked=c.banked,rows=[];
+  for(var i=1;i<=n;i++){
+    var stake=cap*S.deploy;
+    var finish=(S.proj.mode==="amount")?stake+(S.proj.amount||0):stake*(S.proj.mult||1);
+    var sp=splitClose(stake,finish);
+    var potAfter=cap-stake+finish-sp.bank;
+    var row={ n:i, pot:cap, start:stake, finish:finish, mult:stake>0?finish/stake:0,
+              bank:sp.bank, roll:potAfter };
+    banked+=sp.bank; cap=potAfter;
+    row.banked=banked; row.equity=cap+banked;
+    rows.push(row);
+  }
+  return { base:c, start:start, rows:rows };
+}
+function goalMult(){
+  if(S.proj.mode!=="amount") return S.proj.mult||1;
+  var cap=(isFinite(S.proj.start)&&S.proj.start!==null)?S.proj.start:compute().capital;
+  var stake=cap*S.deploy;
+  return stake>0?(stake+(S.proj.amount||0))/stake:1;
+}
+function goalPath(moves){
+  var pts=[{n:0,equity:S.capital}],cap=S.capital,banked=0,g=goalMult(),i;
+  for(i=1;i<=moves;i++){
+    var stake=cap*S.deploy,f=stake*g,sp=splitClose(stake,f);
+    banked+=sp.bank; cap=cap-stake+f-sp.bank; pts.push({n:i,equity:cap+banked});
+  }
+  return pts;
+}
+
+function mVal(r){ return S.basis==="banked"?r.banked:r.equity; }
+function keyOf(v){ return Math.round(v*100)/100; }
+function targetIdx(v){
+  var k=keyOf(v);
+  for(var i=0;i<S.targets.length;i++)
+    if(keyOf(S.targets[i].v)===k&&S.targets[i].basis===S.basis) return i;
+  return -1;
+}
+function milestones(){
+  var c=compute();
+  var out=S.targets.map(function(t){
+    var now=t.basis==="banked"?c.banked:c.equity,hit=null;
+    for(var j=0;j<c.rows.length;j++){
+      var m=t.basis==="banked"?c.rows[j].banked:c.rows[j].equity;
+      if(m>=t.v){ hit=c.rows[j]; break; }
+    }
+    return { v:t.v, basis:t.basis, now:now, hit:hit,
+             pct:t.v>0?Math.min(1,now/t.v):1, togo:Math.max(0,t.v-now) };
+  });
+  out.sort(function(a,b){ return a.v-b.v; });
+  return out;
+}
+
+/* What the next trade must return to reach a target, staking what's free.
+   Equity afterwards = finish + banked. Safe-haven targets are solved
+   numerically because the protect rule makes banking piecewise. */
+function neededFor(target,basis){
+  var c=compute(),cap=c.capital,stake=cap*S.deploy;
+  if(stake<=0) return null;
+  if(basis==="banked"){
+    var need=target-c.banked;
+    if(need<=0) return {done:true};
+    var lo=stake,hi=stake+need/Math.max(S.split,0.01)+need+1;
+    for(var i=0;i<80;i++){
+      var mid=(lo+hi)/2;
+      if(splitClose(stake,mid).bank<need) lo=mid; else hi=mid;
+    }
+    return { finish:hi, mult:hi/stake, stake:stake };
+  }
+  /* equity afterwards = cap - stake + finish + banked */
+  var f=target-c.banked-cap+stake;
+  if(f<=stake) return {done:true};
+  return { finish:f, mult:f/stake, stake:stake };
+}
+
+/* A "hit" is reaching the multiple you were aiming for. A trade that returns
+   1.5x when the rung needed 5x made money but missed — and the ladder cares
+   about the miss, not the profit. */
+function hitStats(trades){
+  var n=0,hits=0,i;
+  for(i=0;i<trades.length;i++){
+    var tg=trades[i].target;
+    if(!isFinite(tg)||tg<=1) continue;
+    n++;
+    if(trades[i].mult>=tg-1e-9) hits++;
+  }
+  return { n:n, hits:hits, rate:n?hits/n:null };
+}
+function assumedHit(trades){
+  if(S.hitOverride!==null&&isFinite(S.hitOverride)) return S.hitOverride;
+  var h=hitStats(trades);
+  return (h.n>=5&&h.rate!==null) ? h.rate : 0.70;
+}
+
+/* Monte Carlo: from where you are now, at that hit rate, how often does the
+   ladder reach the target? A miss loses the whole stake. */
+function ladderOdds(target,hit,trials,maxTrades){
+  var c=compute(),m=goalMult(),f=S.deploy,k=S.split;
+  if(!(target>0)||!(m>1)||!(f>0)) return null;
+  if(c.equity>=target) return 1;
+  trials=trials||3000; maxTrades=maxTrades||60;
+  var won=0,seed=12345;
+  function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+  for(var t=0;t<trials;t++){
+    var pot=c.capital,safe=c.banked,i;
+    for(i=0;i<maxTrades;i++){
+      if(pot<1e-6) break;
+      var stake=pot*f;
+      if(rnd()<hit){
+        var close=stake*m,sp=splitClose(stake,close,k);
+        pot=pot-stake+close-sp.bank; safe+=sp.bank;
+      } else pot-=stake;
+      if(pot+safe>=target){ won++; break; }
+    }
+  }
+  return won/trials;
+}
+
+function streaks(t){
+  var bw=0,bl=0,cw=0,cl=0,cur=0,dir="";
+  for(var i=0;i<t.length;i++){
+    if(t[i].mult>1){ cw++; cl=0; bw=Math.max(bw,cw); }
+    else if(t[i].mult<1){ cl++; cw=0; bl=Math.max(bl,cl); }
+    else { cw=0; cl=0; }
+  }
+  if(cw>0){ cur=cw; dir="win"; } else if(cl>0){ cur=cl; dir="loss"; }
+  return { bestWin:bw, worstLoss:bl, current:cur, dir:dir };
+}
+
+function byMarket(t){
+  var m={},arr=[],k;
+  for(var i=0;i<t.length;i++){
+    var name=(t[i].mkt||"").trim()||"Unlabelled";
+    if(!m[name]) m[name]={name:name,n:0,wins:0,profit:0,mult:0};
+    m[name].n++; m[name].profit+=t[i].profit; m[name].mult+=t[i].mult;
+    if(t[i].mult>1) m[name].wins++;
+  }
+  for(k in m){ if(m.hasOwnProperty(k)){ m[k].avg=m[k].mult/m[k].n; arr.push(m[k]); } }
+  arr.sort(function(a,b){ return b.profit-a.profit; });
+  return arr;
+}
+
+/* ================= render ================= */
+function render(){
+  var c=compute();
+  var growth=c.invested>0?(c.equity/c.invested-1):0;
+  var openN=0,i;
+  for(i=0;i<c.rows.length;i++) if(c.rows[i].k==="trade"&&c.rows[i].open) openN++;
+  var st=streaks(c.trades);
+  var avg=c.trades.length?c.trades.reduce(function(a,r){return a+r.mult;},0)/c.trades.length:0;
+
+  el("tiles").innerHTML=
+    tile("safe","Safe haven — banked",gbp(c.banked),"Locked away. Never traded again.")+
+    tile("play","Free to trade",gbp(c.capital),
+      openN?gbp(c.openStake)+" tied up in "+openN+" open trade"+(openN>1?"s":""):"This is what your next trade risks.")+
+    tile("","Total money",gbp(c.equity),
+      (c.trades.length||openN||c.invested!==S.capital)
+        ? (growth>=0?"▲ ":"▼ ")+Math.abs(growth*100).toFixed(0)+"% on the "+gbp(c.invested)+" you've put in"
+        : "Log a trade to get going.")+
+    tile("","Trades closed",String(c.trades.length),
+      c.trades.length?st.bestWin+" best run · avg "+xm(avg):"&nbsp;");
+
+  renderNeeds(c);
+  renderEntries(c);
+  renderRecord(c,st,avg);
+  renderByMarket(c);
+
+  var si=el("startIn");
+  if(document.activeElement!==si) si.value=round2(c.capital*S.deploy);
+  syncPair();
+
+  renderProjection();
+  renderMilestones();
+  renderSummaries(c,st,avg);
+  renderBank(); renderDeploy(); renderMech();
+  renderHitSel(c); renderOdds(c);
+  drawEquity(c);
+  drawMult(c);
+  updatePreview();
+  updateClears();
+  renderCats();
+  planNote();
+  persist();
+}
+
+function renderSummaries(c,st,avg){
+  var ms=milestones(),hitN=0,i;
+  for(i=0;i<ms.length;i++) if(ms[i].hit) hitN++;
+  var wins=0;
+  for(i=0;i<c.trades.length;i++) if(c.trades[i].mult>1) wins++;
+  var openN=0;
+  for(i=0;i<c.rows.length;i++) if(c.rows[i].k==="trade"&&c.rows[i].open) openN++;
+  var mkts=byMarket(c.trades).length;
+  var nm=ms.filter(function(m){return !m.hit;})[0];
+
+  set("sumNeeds", nm ? ("next milestone "+gbp(nm.v)) : (c.capital>0?gbp(c.capital)+" free":""));
+  set("sumEquity", gbp(c.equity)+" total");
+  set("sumMult", c.trades.length ? (c.trades.length+" closed · avg "+xm(avg)) : "nothing closed yet");
+  set("sumProj", (S.proj.mode==="amount" ? ("+"+gbp(S.proj.amount)+" a trade") : (xm(S.proj.mult)+" a trade"))
+      +" · "+S.proj.count+" ahead");
+  set("sumMs", ms.length ? (ms.length+" set · "+hitN+" hit") : "none set");
+  set("sumRecord", c.trades.length
+      ? (Math.round(wins/c.trades.length*100)+"% win rate · avg "+xm(avg)) : "no trades yet");
+  set("sumByMkt", mkts ? (mkts+" market"+(mkts===1?"":"s")) : "nothing labelled");
+  set("sumEntries", c.rows.length
+      ? (c.rows.length+" entr"+(c.rows.length===1?"y":"ies")
+         +(openN?(" · "+openN+" open"):"")) : "nothing logged");
+}
+function set(id,txt){ var e=el(id); if(e) e.textContent=txt; }
+
+function tile(k,lab,val,foot){
+  return '<div class="tile '+k+'"><div class="lab">'+lab+'</div><div class="val">'+val+
+         '</div><div class="foot">'+foot+'</div></div>';
+}
+function mktCell(name){
+  if(!name) return "—";
+  var url=cmcURL(name);
+  return url ? '<a class="mktlink" href="'+esc(url)+'" target="_blank" rel="noopener"'
+             + ' title="Open on CoinMarketCap">'+esc(name)+' &#8599;</a>'
+             : esc(name);
+}
+function mini(k,v,sub){
+  return '<div><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+sub+'</div></div>';
+}
+
+function renderEntries(c){
+  var h="",i;
+  if(!c.rows.length){
+    h='<tr><td colspan="12" class="empty">Nothing logged yet. Add your first trade above.</td></tr>';
+  } else {
+    for(i=0;i<c.rows.length;i++){
+      var r=c.rows[i];
+      if(r.k==="cash"){
+        var word=(r.amount>=0?"Paid in to ":"Taken out of ")+(r.pot==="safe"?"safe haven":"trading capital");
+        h+='<tr class="cashrow"><td>'+(i+1)+'</td><td>'+(r.date?fmtDate(r.date):"—")+'</td>'
+          +'<td colspan="6" style="text-align:left">'+word+' &nbsp;<b style="color:'
+          +(r.amount>=0?'var(--good-ink)':'var(--critical)')+'">'
+          +(r.amount>=0?"+":"")+gbp(r.amount,2)+'</b></td>'
+          +'<td>'+gbp(r.cap,2)+'</td><td>'+gbp(r.banked,2)+'</td><td><b>'+gbp(r.equity,2)+'</b></td>'
+          +'<td><button class="del" data-i="'+i+'" title="Remove">&times;</button></td></tr>';
+      } else if(r.open){
+        h+='<tr class="openrow"><td>'+(i+1)+'</td><td>'+(r.date?fmtDate(r.date):"—")+'</td>'
+          +'<td>'+mktCell(r.mkt)+'</td><td>'+gbp(r.start,2)+'</td>'
+          +'<td><input class="closein plain" type="text" inputmode="decimal" data-close="'+i+'" placeholder="£ or 3x"></td>'
+          +'<td><span class="pill open">Open</span></td>'
+          +'<td colspan="4" style="text-align:left">'
+          +'<button class="ghost" data-doclose="'+i+'">Close this trade</button></td>'
+          +'<td><b>'+gbp(r.equity,2)+'</b></td>'
+          +'<td><button class="del" data-i="'+i+'" title="Remove">&times;</button></td></tr>';
+      } else {
+        var cls=r.mult>=goalMult()-1e-9?"good":(r.mult<1?"bad":"mid");
+        h+='<tr><td>'+(i+1)+'</td><td>'+(r.date?fmtDate(r.date):"—")+'</td>'
+          +'<td>'+mktCell(r.mkt)+'</td><td>'+gbp(r.start,2)+'</td><td>'+gbp(r.finish,2)+'</td>'
+          +'<td><span class="pill '+cls+'">'+xm(r.mult)+'</span></td>'
+          +'<td style="color:'+(r.profit>=0?'var(--good-ink)':'var(--critical)')+'">'
+          +(r.profit>=0?"+":"−")+gbp(Math.abs(r.profit),2)+'</td>'
+          +'<td title="'+Math.round(r.split*100)+'% of the close">'+gbp(r.bank,2)
+          +'</td><td>'+gbp(r.roll,2)+'</td>'
+          +'<td>'+gbp(r.banked,2)+'</td><td><b>'+gbp(r.equity,2)+'</b></td>'
+          +'<td><button class="del" data-i="'+i+'" title="Remove">&times;</button></td></tr>';
+      }
+    }
+  }
+  el("tbody").innerHTML=h;
+}
+
+function renderRecord(c,st,avg){
+  var wins=0,losses=0,netP=0,i;
+  for(i=0;i<c.trades.length;i++){
+    if(c.trades[i].mult>1) wins++; else if(c.trades[i].mult<1) losses++;
+    netP+=c.trades[i].profit;
+  }
+  var n=c.trades.length;
+  var dd=c.peak>0?(c.peak-c.equity)/c.peak:0;
+  var hs=hitStats(c.trades);
+  el("record").innerHTML=
+    mini("Hit rate vs target", hs.n?(Math.round(hs.rate*100)+"%"):"—",
+         hs.n?(hs.hits+" of "+hs.n+" reached the goal"):"log a trade with a goal set")+
+    mini("Win rate", n?Math.round(wins/n*100)+"%":"—", wins+" up, "+losses+" down")+
+    mini("Average multiplier", n?xm(avg):"—", "goal is "+xm(goalMult()))+
+    mini("Best winning run", n?String(st.bestWin):"—", "trades in a row")+
+    mini("Worst losing run", n?String(st.worstLoss):"—", "trades in a row")+
+    mini("Right now", st.current?(st.current+" "+(st.dir==="win"?"win":"loss")+(st.current>1?(st.dir==="win"?"s":"es"):"")):"—",
+         st.dir==="win"?"on a run":(st.dir==="loss"?"hold your nerve":"&nbsp;"))+
+    mini("Average per trade", n?gbp(netP/n):"—", "profit or loss")+
+    mini("Best ever total", gbp(c.peak), "your high-water mark")+
+    mini("Down from peak", (dd*100).toFixed(dd>0?1:0)+"%",
+         dd>0?gbp(c.peak-c.equity)+" below":"at your peak");
+}
+
+function renderByMarket(c){
+  var bm=byMarket(c.trades),h,b;
+  if(!bm.length){ el("byMktWrap").innerHTML='<div class="empty">Label a few trades and this fills in.</div>'; return; }
+  h='<table class="narrow"><thead><tr><th>Market</th><th>Trades</th><th>Win rate</th>'
+   +'<th>Avg mult</th><th>Profit</th></tr></thead><tbody>';
+  for(b=0;b<bm.length;b++){
+    var g=bm[b];
+    h+='<tr><td>'+mktCell(g.name)+'</td><td>'+g.n+'</td><td>'+Math.round(g.wins/g.n*100)+'%</td>'
+      +'<td>'+xm(g.avg)+'</td><td style="color:'+(g.profit>=0?'var(--good-ink)':'var(--critical)')+'">'
+      +(g.profit>=0?"+":"−")+gbp(Math.abs(g.profit))+'</td></tr>';
+  }
+  el("byMktWrap").innerHTML=h+'</tbody></table>';
+}
+
+function renderMech(){
+  var f=formDeploy(),m=goalMult(),k=formSplit();
+  var g=rungGrowth(f,m,k);
+  var c=compute(),goal=isFinite(S.goal)?S.goal:0,rungs=0;
+  if(goal>0&&g>1){
+    var pot=c.capital,safe=c.banked;
+    while(pot+safe<goal&&rungs<500){
+      var st=pot*f,cl=st*m,spx=splitClose(st,cl,k);
+      pot=pot-st+cl-spx.bank; safe+=spx.bank; rungs++;
+    }
+  }
+  el("mechNote").innerHTML="Staking <b>"+Math.round(f*100)+"%</b> of the pot at your "
+    +xm(m)+" goal and banking <b>"+Math.round(k*100)+"%</b> grows the pot <b>"
+    +g.toFixed(2)+"&times;</b> a win, and a total loss costs "+Math.round(f*100)+"% of it"
+    +(f>=0.999?" — the whole thing.":", not all of it.")
+    +(rungs&&rungs<500 ? (" <b>"+rungs+"</b> clean win"+(rungs===1?"":"s")+" from "
+       +gbp(goal)+".") : "");
+}
+
+function renderOdds(c){
+  var goal=isFinite(S.goal)?S.goal:0;
+  if(!(goal>0)){ el("odds").innerHTML="<div style='color:var(--muted)'>Set a goal to see the odds.</div>"; return; }
+  var h=hitStats(c.trades),hit=assumedHit(c.trades);
+  var pw=ladderOdds(goal,hit);
+  if(pw===null){ el("odds").innerHTML=""; return; }
+  var pct=function(x){ return (x*100).toFixed(x>0.995||x<0.0005?(x>0.995?0:2):1)+"%"; };
+
+  /* the same ladder at a different deployment, so the lever is visible */
+  var savedF=S.deploy,alt=(S.deploy>=0.999)?0.5:1.0;
+  S.deploy=alt; var other=ladderOdds(goal,hit); S.deploy=savedF;
+
+  var src=(S.hitOverride!==null)?"an assumed":(h.n>=5?"your realised":"an assumed");
+  el("odds").innerHTML=
+    "<div><span class='big'>"+pct(pw)+"</span> chance of reaching <b>"+gbp(goal)
+    +"</b> from here — staking "+Math.round(S.deploy*100)+"% of the pot at your "
+    +xm(goalMult())+" goal, banking "+Math.round(S.split*100)+"%, on "+src
+    +" hit rate of <b>"+Math.round(hit*100)+"%</b>.</div>"
+    +"<div style='margin-top:6px;color:var(--ink-2);font-size:13px'>"
+    +"Same trader staking <b>"+Math.round(alt*100)+"%</b> instead: <b>"+pct(other)+"</b>"
+    +(alt>=0.999?" — one loss ends it.":" — a loss costs half the pot, not the ladder.")+" "
+    +(h.n?("Your hit rate is measured over "+h.n+" trade"+(h.n===1?"":"s")+" with a goal set; "
+           +h.hits+" reached it.")
+         :"No trades with a goal logged yet, so 70% is an assumption, not a finding.")
+    +" A miss is assumed to lose the whole stake.</div>";
+}
+
+function renderHitSel(c){
+  var h=hitStats(c.trades),opts=[40,50,60,65,70,75,80,90],i,hh="";
+  hh+='<option value="">'+(h.n>=5?("your realised "+Math.round(h.rate*100)+"%"):"70% (assumed)")+'</option>';
+  for(i=0;i<opts.length;i++) hh+='<option value="'+opts[i]+'">'+opts[i]+'%</option>';
+  el("hitIn").innerHTML=hh;
+  el("hitIn").value=(S.hitOverride===null)?"":String(Math.round(S.hitOverride*100));
+}
+
+function renderNeeds(c){
+  el("needStake").textContent=gbp(c.capital);
+  var out="";
+  function line(lbl,res){
+    if(!res) return "";
+    if(res.done) return '<div class="need"><span class="lbl">'+lbl+'</span>'
+      +'<span class="big" style="color:var(--good-ink)">Already there</span></div>';
+    return '<div class="need"><span class="lbl">'+lbl+'</span>'
+      +'<span class="big">'+xm(res.mult)+'</span>'
+      +'<span class="alt">finish with '+gbp(res.finish,2)+'</span></div>';
+  }
+  if(c.equity<c.peak-0.005)
+    out+=line("Get back to your best ever total of <b>"+gbp(c.peak)+"</b>",neededFor(c.peak,"equity"));
+  var nm=milestones().filter(function(m){return !m.hit;})[0];
+  if(nm) out+=line("Reach your next milestone of <b>"+gbp(nm.v)+"</b>"+(nm.basis==="banked"?" banked":""),
+                   neededFor(nm.v,nm.basis));
+  var pr=projection();
+  if(pr.rows.length&&c.capital>0)
+    out+=line("Stay on your projection",{mult:pr.rows[0].mult,finish:pr.rows[0].finish});
+  if(!out) out='<div class="empty">Nothing free to trade — pay money in, or close an open trade.</div>';
+  el("needs").innerHTML=out;
+}
+
+function renderProjection(){
+  var pr=projection(),h="",i;
+  for(i=0;i<pr.rows.length;i++){
+    var r=pr.rows[i],on=targetIdx(mVal(r))>=0;
+    h+='<tr class="'+(on?"targeted":"")+'"><td>+'+r.n+'</td><td>'+gbp(r.pot,2)+'</td>'
+      +'<td>'+gbp(r.start,2)+'</td>'
+      +'<td><b>'+gbp(r.finish,2)+'</b></td><td><span class="pill mid">'+xm(r.mult)+'</span></td>'
+      +'<td>'+gbp(r.bank,2)+'</td><td>'+gbp(r.roll,2)+'</td><td>'+gbp(r.banked,2)+'</td>'
+      +'<td><b>'+gbp(r.equity,2)+'</b></td>'
+      +'<td style="text-align:center"><button class="star '+(on?"on":"")+'" data-v="'+mVal(r)+'" title="'
+      +(on?"Remove this milestone":"Make this a milestone")+'">'+(on?"★":"☆")+'</button></td></tr>';
+  }
+  el("pbody").innerHTML=h;
+  el("pStart").placeholder=String(round2(pr.base.capital));
+}
+
+function renderMilestones(){
+  var ms=milestones(),h="",i,nextShown=false;
+  if(!ms.length){
+    h='<div class="empty">No milestones yet. Tap the star next to any line in the projection above.</div>';
+  } else {
+    for(i=0;i<ms.length;i++){
+      var m=ms[i],done=!!m.hit,isNext=!done&&!nextShown;
+      if(isNext) nextShown=true;
+      var what=m.basis==="banked"?"safe haven":"total money";
+      h+='<div class="ms"><div class="ms-top">'
+        +'<span class="ms-val">'+gbp(m.v)+'</span>'
+        +'<span style="font-size:13px;color:var(--ink-2)">'+what+'</span>'
+        +'<span class="badge '+(done?"done":(isNext?"next":""))+'">'
+        +(done?"✓ Hit":(isNext?"Next up":"Ahead"))+'</span><span class="ms-sub">'
+        +(done?("Reached on entry "+(m.hit.i+1)+(m.hit.date?" · "+fmtDate(m.hit.date):""))
+              :(gbp(m.togo)+" to go · "+Math.round(m.pct*100)+"%"))
+        +'</span></div>'
+        +'<div class="bar"><i class="'+(done?"done":"")+'" style="width:'+(m.pct*100).toFixed(1)+'%"></i></div>'
+        +'<div style="margin-top:8px;text-align:right">'
+        +'<button class="ghost" data-del="'+m.v+'" data-basis="'+m.basis+'">Remove</button></div></div>';
+    }
+  }
+  el("msList").innerHTML=h;
+}
+
+/* ================= finish value <-> multiplier ================= */
+var lastEdited="finish";
+function syncPair(src){
+  var fi=el("finishIn"),mi=el("multIn"),start=num(el("startIn"));
+  if(src) lastEdited=src;
+  if(!isFinite(start)||start<=0) return;
+  if(lastEdited==="mult"){
+    var m=num(mi);
+    if(mi.value===""){ if(document.activeElement!==fi) fi.value=""; }
+    else if(isFinite(m)) fi.value=String(round2(start*m));
+  } else {
+    var f=num(fi);
+    if(fi.value===""){ if(document.activeElement!==mi) mi.value=""; }
+    else if(isFinite(f)) mi.value=trimNum(f/start);
+  }
+}
+
+function updatePreview(){
+  var p=el("preview"),b=el("addBtn"),ob=el("openBtn");
+  var start=num(el("startIn")),finish=num(el("finishIn"));
+  ob.disabled=!(isFinite(start)&&start>0);
+  if(!isFinite(start)||start<=0||!isFinite(finish)){
+    p.className="preview";
+    p.innerHTML="Enter what you finished with — or the multiplier — and I'll show you the split before you save.";
+    b.disabled=true; return;
+  }
+  b.disabled=false;
+  var bsp=formSplit(),m=finish/start,sp=splitClose(start,finish,bsp),profit=finish-start;
+  if(finish<=0){
+    p.className="preview bad";
+    p.innerHTML='<span><span class="pill bad">0.00x</span> Total loss — <b>'+gbp(start,2)
+      +'</b> gone. Nothing rolls on. Your safe haven is untouched.</span>';
+  } else if(profit<0){
+    p.className="preview bad";
+    p.innerHTML='<span><span class="pill bad">'+xm(m)+'</span> Down <b>'+gbp(-profit,2)+'</b>. Nothing is banked'
+      +(S.protect?" (your stake is protected)":"")+' — <b>'+gbp(sp.roll,2)+'</b> rolls into the next trade.</span>';
+  } else {
+    var hit=m>=goalMult()-1e-9;
+    p.className="preview good";
+    p.innerHTML='<span><span class="pill '+(hit?"good":"mid")+'">'+xm(m)+'</span>'
+      +(hit?"Goal hit. ":"")+'You made <b>'+gbp(profit,2)+'</b>. <b>'+gbp(sp.bank,2)
+      +'</b> goes to safe haven ('+Math.round(bsp*100)+'%), <b>'+gbp(sp.roll,2)
+      +'</b> rolls into the next trade.</span>';
+  }
+}
+
+/* ================= market picker: search box + dropdown ================= */
+var NEWVAL="__add__";
+
+function rank(name,q){
+  var l=name.toLowerCase(),at=l.indexOf(q);
+  if(at<0) return -1;
+  if(at===0) return 0;
+  return /[\s(\/\-]/.test(l.charAt(at-1)) ? 1 : 2;
+}
+function cmpName(a,b){ return String(a).localeCompare(String(b)); }
+
+/* Predictive: the search box narrows what the dropdown holds, ranked so a
+   match at the start of a name (or a ticker) comes first. */
+function searchMarkets(q){
+  var src=pool(),out=[],i,r;
+  if(!q) return src.slice().sort(cmpName);
+  for(i=0;i<src.length;i++){
+    r=rank(src[i],q);
+    if(r>=0) out.push({name:src[i],r:r});
+  }
+  out.sort(function(a,b){ return a.r-b.r || cmpName(a.name,b.name); });
+  return out.map(function(o){ return o.name; });
+}
+
+function renderCats(){
+  var h="",i,total=0,k;
+  for(k in DB) if(DB.hasOwnProperty(k)) total+=DB[k].length;
+  total+=S.custom.length;
+  if(activeCat==="Yours"&&!S.custom.length) activeCat="All";
+  for(i=0;i<CATS.length;i++){
+    var c=CATS[i],n=(c==="All")?total:(c==="Yours"?S.custom.length:(DB[c]?DB[c].length:0));
+    if(c==="Yours"&&!S.custom.length) continue;
+    h+='<option value="'+esc(c)+'">'+esc(c==="All"?"All markets":c)+' ('+n+')</option>';
+  }
+  el("catPick").innerHTML=h;
+  el("catPick").value=activeCat;
+}
+
+/* Rebuild the dropdown from the active category + search text, grouped by
+   category so a search across everything still reads clearly. */
+function renderPicker(keep){
+  var sel=el("mktPick");
+  var q=el("mktSearch").value.trim(),ql=q.toLowerCase();
+  var hits=searchMarkets(ql),i,j,groups={},order=[],h="";
+  var want=(keep!==undefined)?keep:sel.value;
+  var MAXOPT=600,total=hits.length,cut=0;
+  if(total>MAXOPT){
+    if(want&&hits.indexOf(want)>=MAXOPT) hits=[want].concat(hits.slice(0,MAXOPT-1));
+    hits=hits.slice(0,MAXOPT);
+    cut=total-MAXOPT;
+  }
+
+  h+='<option value="">'+(hits.length?"— choose one —":"— nothing matches —")+'</option>';
+  if(q&&pool().map(function(m){return m.toLowerCase();}).indexOf(ql)<0)
+    h+='<option value="'+NEWVAL+'">+ Add “'+esc(q)+'” to my list</option>';
+
+  for(i=0;i<hits.length;i++){
+    var cat=catOf(hits[i]);
+    if(!groups[cat]){ groups[cat]=[]; order.push(cat); }
+    groups[cat].push(hits[i]);
+  }
+  for(i=0;i<order.length;i++){
+    h+='<optgroup label="'+esc(order[i])+'">';
+    for(j=0;j<groups[order[i]].length;j++)
+      h+='<option value="'+esc(groups[order[i]][j])+'">'+esc(groups[order[i]][j])+'</option>';
+    h+='</optgroup>';
+  }
+  if(cut) h+='<optgroup label="+ '+cut+' more — search to narrow it down"></optgroup>';
+  sel.innerHTML=h;
+
+  /* keep what was already chosen if it survived the filter, else auto-pick a lone hit */
+  if(want&&want!==NEWVAL&&hits.indexOf(want)>=0) sel.value=want;
+  else if(hits.length===1) sel.value=hits[0];
+  else sel.value="";
+
+  el("mktFound").textContent = q
+    ? (total+" match"+(total===1?"":"es")+" for “"+q+"”"
+       +(activeCat!=="All"?(" in "+activeCat):"")
+       +(cut?(" — showing the first "+hits.length):""))
+    : (total+" to choose from"+(activeCat!=="All"?(" in "+activeCat):"")
+       +(cut?(" — showing the first "+hits.length+", type to narrow it down")
+            :" — type to narrow it down"));
+  updateCmcBar();
+}
+
+function formSplit(){
+  var v=parseFloat(el("bankIn").value);
+  return isFinite(v) ? Math.max(0,Math.min(100,v))/100 : S.split;
+}
+function chosenMarket(){
+  var v=el("mktPick").value;
+  if(v===NEWVAL) return el("mktSearch").value.trim();
+  return v;
+}
+function updateCmcBar(){
+  var nm=chosenMarket(),url=nm?cmcURL(nm):"",bar=el("cmcBar");
+  if(!url){ bar.className="cmcbar"; bar.innerHTML=""; return; }
+  bar.className="cmcbar on";
+  bar.innerHTML='<a class="cmc" href="'+esc(url)+'" target="_blank" rel="noopener">'
+    +esc(nm)+' on CoinMarketCap ↗</a>'
+    +'<span style="color:var(--muted);font-size:12px">live price, chart and market cap</span>';
+}
+function rememberMarket(name){
+  name=(name||"").trim(); if(!name) return;
+  var all=[],k;
+  for(k in DB) if(DB.hasOwnProperty(k)) all=all.concat(DB[k]);
+  all=all.concat(S.custom);
+  if(all.map(function(m){return m.toLowerCase();}).indexOf(name.toLowerCase())<0){
+    S.custom.push(name);
+    S.custom.sort(cmpName);
+  }
+}
+function commitNew(){
+  var name=el("mktSearch").value.trim();
+  if(!name) return;
+  rememberMarket(name);
+  activeCat="All";
+  renderCats(); renderPicker(name);
+  persist(); updateClears();
+}
+
+el("catPick").addEventListener("change",function(){
+  activeCat=this.value;
+  renderPicker();
+});
+el("mktSearch").addEventListener("input",function(){
+  if(this.value.trim()&&activeCat!=="All"){ activeCat="All"; renderCats(); }
+  renderPicker(); updateClears();
+});
+el("mktSearch").addEventListener("keydown",function(e){
+  if(e.key!=="Enter") return;
+  e.preventDefault();
+  var sel=el("mktPick");
+  if(sel.querySelector('option[value="'+NEWVAL+'"]')&&!sel.value){ sel.value=NEWVAL; commitNew(); }
+  else sel.focus();
+});
+el("mktPick").addEventListener("change",function(){
+  if(this.value===NEWVAL) commitNew(); else updateCmcBar();
+});
+
+/* ================= clear buttons ================= */
+function updateClears(){
+  var bs=document.querySelectorAll("[data-clr]"),i;
+  for(i=0;i<bs.length;i++){
+    var t=el(bs[i].getAttribute("data-clr"));
+    bs[i].classList.toggle("on", !!(t&&String(t.value).length));
+  }
+}
+document.addEventListener("change",updateClears);
+document.addEventListener("click",function(ev){
+  var b=ev.target.closest?ev.target.closest("[data-clr]"):null;
+  if(!b) return;
+  ev.preventDefault();
+  var id=b.getAttribute("data-clr"),t=el(id);
+  if(!t) return;
+  t.value="";
+  if(id==="finishIn"||id==="multIn"){
+    el("finishIn").value=""; el("multIn").value=""; lastEdited="finish"; updatePreview();
+  }
+  else if(id==="startIn"){ updatePreview(); }
+  else if(id==="pStart"){ S.proj.start=null; render(); }
+  else if(id==="goalIn"){ S.goal=0; render(); }
+  else if(id==="mktSearch"){ renderPicker(); }
+  else if(id==="mktPick"){ el("mktPick").value=""; updateCmcBar(); }
+  updateClears();
+  t.focus();
+});
+document.addEventListener("input",updateClears);
+
+function clearTradeForm(){
+  var c=compute();
+  el("startIn").value=round2(c.capital*S.deploy);
+  el("finishIn").value=""; el("multIn").value=""; el("mktSearch").value="";
+  el("dateIn").value=todayISO();
+  lastEdited="finish";
+  renderPicker(""); updatePreview(); updateClears();
+  el("finishIn").focus();
+}
+el("clearForm2").addEventListener("click",clearTradeForm);
+
+/* ================= charts ================= */
+var W=640,H=300,PL=66,PR=54,PT=14,PB=34,K=1;
+function ns(t){ return document.createElementNS("http://www.w3.org/2000/svg",t); }
+function mk(t,a){ var e=ns(t),k; for(k in a) if(a.hasOwnProperty(k)) e.setAttribute(k,a[k]); return e; }
+function txt(x,y,s,a){ var e=mk("text",a||{}); e.setAttribute("x",x); e.setAttribute("y",y); e.textContent=s; return e; }
+function setScale(svg){ var w=svg.getBoundingClientRect().width||W; K=Math.max(1,Math.min(2.1,W/w)); }
+function fs(n){ return String(Math.round(n*K*10)/10); }
+function emptyChart(svg,msg){
+  setScale(svg); svg.innerHTML="";
+  svg.appendChild(txt(W/2,H/2,msg,{"text-anchor":"middle","font-size":fs(14),fill:"var(--muted)","font-family":"var(--font)"}));
+}
+function niceTicks(max){
+  if(max<=0) return [0,1];
+  var step=Math.pow(10,Math.floor(Math.log(max)/Math.LN10));
+  var arr=[0.2,0.25,0.5,1,2,2.5,5,10],s=step*10,i;
+  for(i=0;i<arr.length;i++){ if(max/(step*arr[i])<=5.2){ s=step*arr[i]; break; } }
+  var t=[],v=0; while(v<max-s*1e-9){ t.push(v); v+=s; }
+  t.push(v); return t;
+}
+
+function drawEquity(c){
+  var svg=el("equityChart");
+  if(!svg.getBoundingClientRect().width) return;      /* section is collapsed */
+  setScale(svg); svg.innerHTML="";
+  var act=[{n:0,equity:S.capital}].concat(c.rows.map(function(r,i){ return {n:i+1,equity:r.equity}; }));
+  var here=act[act.length-1];
+  var pr=projection();
+  var ceiling=Math.max(c.equity,S.capital)*8,show=0,q;
+  for(q=0;q<pr.rows.length;q++) if(pr.rows[q].equity<=ceiling) show=q+1;
+  show=Math.min(pr.rows.length,12,Math.max(Math.min(3,pr.rows.length),show));
+  var tgt=[{n:here.n,equity:pr.start+c.banked}].concat(
+    pr.rows.slice(0,show).map(function(r){ return {n:here.n+r.n,equity:r.equity}; }));
+  var horizon=Math.max(tgt[tgt.length-1].n,3);
+  var nextMs=milestones().filter(function(m){return !m.hit;})[0];
+  var maxY=Math.max.apply(null,tgt.concat(act).map(function(p){return p.equity;}));
+  if(nextMs&&nextMs.basis==="equity"&&nextMs.v<=maxY*1.35) maxY=Math.max(maxY,nextMs.v);
+  var ticks=niceTicks(maxY),top=ticks[ticks.length-1],i,n,j;
+  var X=function(v){ return PL+(W-PL-PR)*(horizon?v/horizon:0); };
+  var Y=function(v){ return PT+(H-PT-PB)*(1-(top?v/top:0)); };
+
+  for(i=0;i<ticks.length;i++){
+    svg.appendChild(mk("line",{x1:PL,x2:W-PR,y1:Y(ticks[i]),y2:Y(ticks[i]),stroke:"var(--grid)","stroke-width":1}));
+    svg.appendChild(txt(PL-10,Y(ticks[i])+4,shortGBP(ticks[i]),
+      {"text-anchor":"end","font-size":fs(11),fill:"var(--muted)","font-family":"var(--font)"}));
+  }
+  svg.appendChild(mk("line",{x1:PL,x2:W-PR,y1:Y(0),y2:Y(0),stroke:"var(--axis)","stroke-width":1}));
+  for(n=0;n<=horizon;n++){
+    if(horizon>12&&n%2) continue;
+    svg.appendChild(txt(X(n),H-PB+18,String(n),
+      {"text-anchor":"middle","font-size":fs(11),fill:"var(--muted)","font-family":"var(--font)"}));
+  }
+  if(K<1.35) svg.appendChild(txt((PL+W-PR)/2,H-2,"Entry number",
+    {"text-anchor":"middle","font-size":fs(11),fill:"var(--muted)","font-family":"var(--font)"}));
+  el("legTarget").textContent="Projection"+(show<pr.rows.length?(" (next "+show+" of "+pr.rows.length+")"):"");
+
+  function path(pts){ return pts.map(function(p,ix){ return (ix?"L":"M")+X(p.n)+" "+Y(p.equity); }).join(" "); }
+  svg.appendChild(mk("path",{d:path(tgt),fill:"none",stroke:"var(--muted)","stroke-width":2,
+    "stroke-dasharray":"6 5","stroke-linecap":"round"}));
+
+  if(act.length>1){
+    svg.appendChild(mk("path",{d:path(act)+" L"+X(here.n)+" "+Y(0)+" L"+X(0)+" "+Y(0)+" Z",
+      fill:"var(--series-1-soft)",stroke:"none"}));
+    svg.appendChild(mk("path",{d:path(act),fill:"none",stroke:"var(--series-1)","stroke-width":2,
+      "stroke-linejoin":"round","stroke-linecap":"round"}));
+    for(j=0;j<act.length;j++)
+      svg.appendChild(mk("circle",{cx:X(act[j].n),cy:Y(act[j].equity),r:Math.max(4.5,4.5*K*0.8),
+        fill:"var(--series-1)",stroke:"var(--surface)","stroke-width":2}));
+    svg.appendChild(txt(X(here.n)+9,Y(here.equity)+4,shortGBP(here.equity),
+      {"stroke":"var(--surface)","stroke-width":fs(3),"paint-order":"stroke","stroke-linejoin":"round",
+       "font-size":fs(12),"font-weight":"650",fill:"var(--series-1)","font-family":"var(--font)"}));
+  }
+  var lt=tgt[tgt.length-1];
+  var ltY=Y(lt.equity)-8,aY=(act.length>1?Y(here.equity)+4:-999);
+  if(Math.abs(ltY-aY)<20*K) ltY=aY-22*K;
+  svg.appendChild(txt(X(lt.n)+9,Math.max(PT+10*K,ltY),shortGBP(lt.equity),
+    {"stroke":"var(--surface)","stroke-width":fs(3),"paint-order":"stroke","stroke-linejoin":"round",
+     "font-size":fs(12),fill:"var(--muted)","font-family":"var(--font)"}));
+
+  if(nextMs&&nextMs.basis==="equity"&&nextMs.v<=top){
+    svg.appendChild(mk("line",{x1:PL,x2:W-PR,y1:Y(nextMs.v),y2:Y(nextMs.v),
+      stroke:"var(--warn)","stroke-width":1.5,"stroke-dasharray":"2 4"}));
+    svg.appendChild(txt(W-PR-4,Y(nextMs.v)-7,"next milestone "+shortGBP(nextMs.v),
+      {"text-anchor":"end","stroke":"var(--surface)","stroke-width":fs(3),"paint-order":"stroke",
+       "stroke-linejoin":"round","font-size":fs(10),"font-weight":"600",fill:"var(--ink-2)","font-family":"var(--font)"}));
+  }
+
+  var hv=mk("line",{x1:0,x2:0,y1:PT,y2:H-PB,stroke:"var(--axis)","stroke-width":1,opacity:0});
+  svg.appendChild(hv);
+  var hitrect=mk("rect",{x:PL,y:PT,width:W-PL-PR,height:H-PT-PB,fill:"transparent"});
+  svg.appendChild(hitrect);
+  hitrect.addEventListener("mousemove",function(ev){
+    var rc=svg.getBoundingClientRect();
+    var nn=Math.round(((ev.clientX-rc.left)/rc.width*W-PL)/((W-PL-PR)/horizon));
+    nn=Math.max(0,Math.min(horizon,nn));
+    hv.setAttribute("x1",X(nn)); hv.setAttribute("x2",X(nn)); hv.setAttribute("opacity",1);
+    var a=act.filter(function(p){return p.n===nn;})[0];
+    var t=tgt.filter(function(p){return p.n===nn;})[0];
+    var rws=[a?["Your actual",gbp(a.equity,0)]:["Your actual","not logged yet"]];
+    if(t) rws.push(["Projection",gbp(t.equity,0)]);
+    showTip(ev,(nn===0?"Start":"After entry "+nn),rws);
+  });
+  hitrect.addEventListener("mouseleave",function(){ hv.setAttribute("opacity",0); hideTip(); });
+}
+
+function drawMult(c){
+  var svg=el("multChart");
+  if(!svg.getBoundingClientRect().width) return;      /* section is collapsed */
+  if(!c.trades.length){ emptyChart(svg,"Close your first trade to see this."); return; }
+  setScale(svg); svg.innerHTML="";
+  var GM=goalMult();
+  var maxM=Math.max(GM*1.2,Math.max.apply(null,c.trades.map(function(r){return r.mult;}))*1.15,1.2);
+  var ticks=[],stp=maxM>8?2:(maxM>4?1:0.5),v,i;
+  for(v=0;v<=maxM+0.001;v+=stp) ticks.push(v);
+  var top=ticks[ticks.length-1];
+  var innerW=W-PL-PR,nB=c.trades.length,slot=innerW/nB,bw=Math.max(6,Math.min(46,slot-8));
+  var Y=function(x){ return PT+(H-PT-PB)*(1-x/top); };
+
+  for(i=0;i<ticks.length;i++){
+    svg.appendChild(mk("line",{x1:PL,x2:W-PR,y1:Y(ticks[i]),y2:Y(ticks[i]),stroke:"var(--grid)","stroke-width":1}));
+    svg.appendChild(txt(PL-10,Y(ticks[i])+4,ticks[i].toFixed(ticks[i]%1?1:0)+"x",
+      {"text-anchor":"end","font-size":fs(11),fill:"var(--muted)","font-family":"var(--font)"}));
+  }
+  svg.appendChild(mk("line",{x1:PL,x2:W-PR,y1:Y(1),y2:Y(1),stroke:"var(--axis)","stroke-width":1.5}));
+  var rx=K>1.35?W-PR-4:W-PR+6,ra=K>1.35?"end":"start";
+
+  for(i=0;i<nB;i++){
+    var r=c.trades[i],x=PL+slot*i+(slot-bw)/2;
+    var vv=Math.max(0,Math.min(r.mult,top)),y=Y(vv),hgt=Math.max(0,Y(0)-y);
+    svg.appendChild(mk("rect",{x:x,y:y,width:bw,height:hgt,rx:4,
+      fill:(r.mult<1?"var(--critical)":"var(--series-1)"),"data-i":i,style:"cursor:pointer"}));
+    if(nB<=(K>1.5?7:14))
+      svg.appendChild(txt(x+bw/2,y-7,xm(r.mult),
+        {"text-anchor":"middle","font-size":fs(11),"font-weight":"600",fill:"var(--ink-2)","font-family":"var(--font)"}));
+    svg.appendChild(txt(x+bw/2,H-PB+18,String(r.n),
+      {"text-anchor":"middle","font-size":fs(11),fill:"var(--muted)","font-family":"var(--font)"}));
+  }
+  svg.appendChild(mk("line",{x1:PL,x2:W-PR,y1:Y(Math.min(GM,top)),y2:Y(Math.min(GM,top)),
+    stroke:"var(--muted)","stroke-width":2,"stroke-dasharray":"6 5"}));
+  svg.appendChild(txt(rx,Y(Math.min(GM,top))-6,xm(GM)+" goal",
+    {"text-anchor":ra,"font-size":fs(11),"font-weight":"600",fill:"var(--muted)","font-family":"var(--font)"}));
+  if(K<1.35) svg.appendChild(txt((PL+W-PR)/2,H-2,"Trade number",
+    {"text-anchor":"middle","font-size":fs(11),fill:"var(--muted)","font-family":"var(--font)"}));
+
+  svg.addEventListener("mousemove",function(ev){
+    var t=ev.target;
+    if(t.tagName==="rect"&&t.hasAttribute("data-i")){
+      var r2=c.trades[+t.getAttribute("data-i")];
+      showTip(ev,"Trade "+r2.n+(r2.mkt?" · "+r2.mkt:""),
+        [["Put in",gbp(r2.start,2)],["Finished with",gbp(r2.finish,2)],
+         ["Multiplier",xm(r2.mult)],["Banked",gbp(r2.bank,2)]]);
+    } else hideTip();
+  });
+  svg.addEventListener("mouseleave",hideTip);
+}
+
+var tipEl=el("tip");
+function showTip(ev,title,rows){
+  tipEl.innerHTML='<div class="t">'+esc(title)+'</div>'
+    +rows.map(function(r){ return '<div class="r">'+esc(r[0])+': <b>'+esc(String(r[1]))+'</b></div>'; }).join("");
+  tipEl.style.opacity=1;
+  var x=ev.clientX+14,y=ev.clientY+14;
+  if(x+tipEl.offsetWidth>window.innerWidth-8) x=ev.clientX-tipEl.offsetWidth-14;
+  if(y+tipEl.offsetHeight>window.innerHeight-8) y=ev.clientY-tipEl.offsetHeight-14;
+  tipEl.style.left=x+"px"; tipEl.style.top=y+"px";
+}
+function hideTip(){ tipEl.style.opacity=0; }
+
+function planNote(){
+  var p=goalPath(20),g=goalMult();
+  el("planNote").innerHTML="<b>What this goal implies.</b> Starting at "+gbp(S.capital)
+    +" and hitting "+xm(g)+" every single time, your trading pot grows "+(g*(1-S.split)).toFixed(2)
+    +"&times; per trade and your total money reaches "+shortGBP(p[5].equity)+" after 5 trades, "
+    +shortGBP(p[10].equity)+" after 10 and "+shortGBP(p[20].equity)+" after 20. "
+    +"Those figures assume no losing trade anywhere in the run.";
+}
+
+/* ================= persistence ================= */
+var savedTimer;
+function persist(){
+  store(KEY,JSON.stringify(S));
+  var m=el("savedMsg"); m.classList.add("on");
+  clearTimeout(savedTimer); savedTimer=setTimeout(function(){ m.classList.remove("on"); },1200);
+}
+function isArr(x){ return Object.prototype.toString.call(x)==="[object Array]"; }
+function adopt(o){
+  if(!o||typeof o!=="object") return;
+  if(isFinite(o.capital)) S.capital=o.capital;
+  if(isFinite(o.split)) S.split=o.split;
+  if(isFinite(o.deploy)) S.deploy=Math.max(0.01,Math.min(1,o.deploy));
+  if(isFinite(o.goal)) S.goal=o.goal;
+  S.hitOverride=isFinite(o.hitOverride)?o.hitOverride:null;
+  if(typeof o.protect==="boolean") S.protect=o.protect;
+  if(isArr(o.entries)){
+    S.entries=o.entries;
+    /* stamp older files so changing the default never rewrites past trades */
+    for(var q=0;q<S.entries.length;q++){
+      var en=S.entries[q];
+      if(en&&en.k==="trade"&&!isFinite(en.split))
+        en.split=isFinite(o.split)?o.split:S.split;
+      /* older files predate per-trade goals; leave target unset rather than invent one */
+    }
+  }
+  else if(isArr(o.trades)){                       /* migrate a v1 file */
+    S.entries=o.trades.map(function(t){
+      return { k:"trade", date:t.date||"", mkt:t.note||"", start:t.start,
+               finish:(t.finish===null||t.finish===undefined)?null:t.finish };
+    });
+  }
+  if(isArr(o.custom)) S.custom=o.custom;
+  else if(isArr(o.markets)){                 /* a v2 file kept one flat list */
+    var known=[],kk;
+    for(kk in DB) if(DB.hasOwnProperty(kk)) known=known.concat(DB[kk]);
+    known=known.map(function(m){ return m.toLowerCase(); });
+    S.custom=o.markets.filter(function(m){ return known.indexOf(String(m).toLowerCase())<0; });
+  }
+  if(isArr(o.targets)) S.targets=o.targets;
+  if(o.basis==="banked"||o.basis==="equity") S.basis=o.basis;
+  if(o.proj&&typeof o.proj==="object"){
+    S.proj.mode=(o.proj.mode==="amount")?"amount":"mult";
+    S.proj.start=isFinite(o.proj.start)?o.proj.start:null;
+    if(isFinite(o.proj.count)) S.proj.count=Math.max(1,Math.min(25,o.proj.count));
+    if(isFinite(o.proj.mult)) S.proj.mult=o.proj.mult;
+    if(isFinite(o.proj.amount)) S.proj.amount=o.proj.amount;
+  }
+}
+function restore(){
+  var raw=fetchStore(KEY)||fetchStore("tradingTracker.v1");
+  if(!raw) return;
+  try{ adopt(JSON.parse(raw)); }catch(e){}
+}
+
+/* ================= events ================= */
+function saveTrade(open){
+  var start=num(el("startIn")),finish=num(el("finishIn")),c0=compute();
+  if(!isFinite(start)||start<=0) return;
+  if(!open&&!isFinite(finish)) return;
+  var mkt=chosenMarket();
+  rememberMarket(mkt);
+  S.entries.push({ k:"trade", date:el("dateIn").value||todayISO(), mkt:mkt,
+                   start:round2(start), finish:open?null:round2(finish),
+                   split:formSplit(), target:goalMult(),
+                   deploy:(start>0&&c0.capital>0)?(start/c0.capital):S.deploy });
+  el("finishIn").value=""; el("multIn").value=""; lastEdited="finish";
+  el("dateIn").value=todayISO();
+  el("mktSearch").value="";
+  renderCats(); renderPicker(mkt);
+  render(); el("finishIn").focus();
+}
+el("addBtn").addEventListener("click",function(){ saveTrade(false); });
+el("openBtn").addEventListener("click",function(){ saveTrade(true); });
+
+el("cashBtn").addEventListener("click",function(){
+  var a=num(el("cashAmt"));
+  if(!isFinite(a)||a<=0) return;
+  S.entries.push({ k:"cash", date:el("dateIn").value||todayISO(),
+                   dir:el("cashDir").value, pot:el("cashPot").value, amount:round2(a) });
+  el("cashAmt").value="";
+  render();
+});
+
+el("tbody").addEventListener("click",function(ev){
+  var d=ev.target.closest?ev.target.closest("[data-i]"):null;
+  if(d){ S.entries.splice(+d.getAttribute("data-i"),1); render(); return; }
+  var cb=ev.target.closest?ev.target.closest("[data-doclose]"):null;
+  if(!cb) return;
+  var idx=+cb.getAttribute("data-doclose");
+  var inp=el("tbody").querySelector('[data-close="'+idx+'"]');
+  if(!inp) return;
+  var raw=String(inp.value).trim().replace(/[£,\s]/g,"");
+  if(!raw) return;
+  var asMult=/x$/i.test(raw),v=parseFloat(raw);
+  if(!isFinite(v)||v<0) return;
+  var stake=(S.entries[idx]&&isFinite(S.entries[idx].start))?S.entries[idx].start:0;
+  S.entries[idx].finish=round2(asMult?stake*v:v);
+  render();
+});
+el("tbody").addEventListener("keydown",function(ev){
+  if(ev.key!=="Enter") return;
+  var inp=ev.target.closest?ev.target.closest("[data-close]"):null;
+  if(!inp) return;
+  var btn=el("tbody").querySelector('[data-doclose="'+inp.getAttribute("data-close")+'"]');
+  if(btn) btn.click();
+});
+
+el("startIn").addEventListener("input",function(){ syncPair(); updatePreview(); });
+el("finishIn").addEventListener("input",function(){ syncPair("finish"); updatePreview(); });
+el("multIn").addEventListener("input",function(){ syncPair("mult"); updatePreview(); });
+["finishIn","multIn"].forEach(function(id){
+  el(id).addEventListener("keydown",function(e){ if(e.key==="Enter") el("addBtn").click(); });
+});
+
+function setMode(m){
+  S.proj.mode=m;
+  el("modeMult").classList.toggle("on",m==="mult");
+  el("modeAmt").classList.toggle("on",m==="amount");
+  el("pMultWrap").style.display=m==="mult"?"":"none";
+  el("pAmtWrap").style.display=m==="amount"?"":"none";
+  render();
+}
+el("modeMult").addEventListener("click",function(){ setMode("mult"); });
+el("modeAmt").addEventListener("click",function(){ setMode("amount"); });
+el("pStart").addEventListener("input",function(){
+  var v=parseFloat(this.value);
+  S.proj.start=(this.value===""||!isFinite(v))?null:v; render();
+});
+el("pMult").addEventListener("input",function(){ var v=parseFloat(this.value); if(isFinite(v)&&v>0){ S.proj.mult=v; render(); } });
+el("pAmt").addEventListener("input",function(){ var v=parseFloat(this.value); if(isFinite(v)&&v>=0){ S.proj.amount=v; render(); } });
+el("pCount").addEventListener("input",function(){ var v=parseInt(this.value,10); if(isFinite(v)){ S.proj.count=Math.max(1,Math.min(25,v)); render(); } });
+el("basisIn").addEventListener("change",function(){ S.basis=this.value; render(); });
+
+el("pbody").addEventListener("click",function(ev){
+  var b=ev.target.closest?ev.target.closest(".star"):null;
+  if(!b) return;
+  var v=parseFloat(b.getAttribute("data-v")),i=targetIdx(v);
+  if(i>=0) S.targets.splice(i,1); else S.targets.push({v:v,basis:S.basis});
+  render();
+});
+el("msList").addEventListener("click",function(ev){
+  var b=ev.target.closest?ev.target.closest("[data-del]"):null;
+  if(!b) return;
+  var v=keyOf(parseFloat(b.getAttribute("data-del"))),bs=b.getAttribute("data-basis");
+  S.targets=S.targets.filter(function(t){ return !(keyOf(t.v)===v&&t.basis===bs); });
+  render();
+});
+el("allTargets").addEventListener("click",function(){
+  var pr=projection(),i;
+  for(i=0;i<pr.rows.length;i++){
+    var v=mVal(pr.rows[i]);
+    if(targetIdx(v)<0) S.targets.push({v:v,basis:S.basis});
+  }
+  render();
+});
+el("noTargets").addEventListener("click",function(){ S.targets=[]; render(); });
+el("projReset").addEventListener("click",function(){
+  S.proj={ mode:"mult", start:null, count:10, mult:5, amount:2500 };
+  syncSettings(); render();
+});
+el("todayBtn").addEventListener("click",function(){ el("dateIn").value=todayISO(); });
+el("bankIn").addEventListener("change",function(){
+  S.split=formSplit();
+  el("splitIn").value=Math.round(S.split*1000)/10;
+  render();
+});
+el("deployIn").addEventListener("change",function(){
+  S.deploy=formDeploy();
+  var c=compute();
+  el("startIn").value=round2(c.capital*S.deploy);
+  render();
+});
+el("goalIn").addEventListener("input",function(){
+  var v=parseFloat(this.value);
+  S.goal=isFinite(v)?Math.max(0,v):0;
+  render();
+});
+el("hitIn").addEventListener("change",function(){
+  var v=parseFloat(this.value);
+  S.hitOverride=(this.value===""||!isFinite(v))?null:Math.max(0.01,Math.min(1,v/100));
+  render();
+});
+
+function bindSetting(id,key,transform){
+  el(id).addEventListener("input",function(){
+    var v=(id==="protectIn")?el(id).checked:parseFloat(el(id).value);
+    if(id!=="protectIn"&&!isFinite(v)) return;
+    S[key]=transform?transform(v):v;
+    render();
+  });
+}
+bindSetting("capIn","capital");
+bindSetting("splitIn","split",function(v){ return Math.max(0,Math.min(100,v))/100; });
+bindSetting("protectIn","protect");
+
+el("mktReset").addEventListener("click",function(){
+  S.custom=[]; activeCat="All"; persist(); renderCats(); renderPicker("");
+});
+
+el("saveFile").addEventListener("click",function(){
+  download("trading-tracker-data.json",JSON.stringify(S,null,2),"application/json");
+});
+el("csvBtn").addEventListener("click",function(){
+  var c=compute(),lines=[];
+  lines.push("ENTRIES");
+  lines.push(["#","Date","Type","What","Put in","Finished","Multiplier","Profit","Banked","Rolls on","Safe haven","Total money"].join(","));
+  c.rows.forEach(function(r,i){
+    if(r.k==="cash"){
+      lines.push([i+1,r.date,(r.amount>=0?"Money in":"Money out"),
+        '"'+(r.pot==="safe"?"Safe haven":"Trading capital")+'"',
+        r.amount.toFixed(2),"","","","","",r.banked.toFixed(2),r.equity.toFixed(2)].join(","));
+    } else if(r.open){
+      lines.push([i+1,r.date,"Open trade",'"'+String(r.mkt).replace(/"/g,'""')+'"',
+        r.start.toFixed(2),"","","","","",r.banked.toFixed(2),r.equity.toFixed(2)].join(","));
+    } else {
+      lines.push([i+1,r.date,"Trade",'"'+String(r.mkt).replace(/"/g,'""')+'"',
+        r.start.toFixed(2),r.finish.toFixed(2),r.mult.toFixed(4),r.profit.toFixed(2),
+        r.bank.toFixed(2),r.roll.toFixed(2),r.banked.toFixed(2),r.equity.toFixed(2)].join(","));
+    }
+  });
+  var pr=projection();
+  lines.push("");
+  lines.push("PROJECTION ("+(S.proj.mode==="amount"?("+"+gbp(S.proj.amount,2)+" per trade"):(xm(S.proj.mult)+" per trade"))+")");
+  lines.push(["Trade","Start with","Finish with","Mult needed","Banked","Rolls on","Safe haven","Total money","Milestone"].join(","));
+  pr.rows.forEach(function(r){
+    lines.push(["+"+r.n,r.start.toFixed(2),r.finish.toFixed(2),r.mult.toFixed(4),
+      r.bank.toFixed(2),r.roll.toFixed(2),r.banked.toFixed(2),r.equity.toFixed(2),
+      (targetIdx(mVal(r))>=0?"YES":"")].join(","));
+  });
+  var ms=milestones();
+  if(ms.length){
+    lines.push(""); lines.push("MILESTONES");
+    lines.push(["Target","Judged on","Status","Reached on entry","Still to go"].join(","));
+    ms.forEach(function(m){
+      lines.push([m.v.toFixed(2),(m.basis==="banked"?"Safe haven":"Total money"),
+        (m.hit?"Hit":"Open"),(m.hit?(m.hit.i+1):""),m.togo.toFixed(2)].join(","));
+    });
+  }
+  var bm=byMarket(c.trades);
+  if(bm.length){
+    lines.push(""); lines.push("BY MARKET");
+    lines.push(["Market","Trades","Win rate","Average multiplier","Profit"].join(","));
+    bm.forEach(function(g){
+      lines.push(['"'+g.name.replace(/"/g,'""')+'"',g.n,Math.round(g.wins/g.n*100)+"%",
+        g.avg.toFixed(4),g.profit.toFixed(2)].join(","));
+    });
+  }
+  download("trading-tracker.csv",lines.join("\n"),"text/csv");
+});
+el("loadBtn").addEventListener("click",function(){ el("fileIn").click(); });
+el("fileIn").addEventListener("change",function(){
+  var f=this.files&&this.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{ adopt(JSON.parse(rd.result)); syncSettings(); render(); }catch(e){}
+  };
+  rd.readAsText(f); this.value="";
+});
+
+var resetArmed=false,resetTimer;
+el("resetBtn").addEventListener("click",function(){
+  var b=this;
+  if(!resetArmed){
+    resetArmed=true; b.textContent="Sure? Click again to delete";
+    clearTimeout(resetTimer);
+    resetTimer=setTimeout(function(){ resetArmed=false; b.textContent="Clear all entries"; },4000);
+    return;
+  }
+  resetArmed=false; b.textContent="Clear all entries";
+  S.entries=[]; render();
+});
+
+function download(name,content,type){
+  var blob=new Blob([content],{type:type});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },0);
+}
+function syncSettings(){
+  el("capIn").value=S.capital;
+  el("splitIn").value=Math.round(S.split*1000)/10;
+  renderBank(); renderDeploy();
+  el("protectIn").checked=S.protect;
+  el("pStart").value=(S.proj.start===null||!isFinite(S.proj.start))?"":S.proj.start;
+  el("pMult").value=S.proj.mult;
+  el("pAmt").value=S.proj.amount;
+  el("pCount").value=S.proj.count;
+  el("basisIn").value=S.basis;
+  el("goalIn").value=S.goal;
+  el("modeMult").classList.toggle("on",S.proj.mode==="mult");
+  el("modeAmt").classList.toggle("on",S.proj.mode==="amount");
+  el("pMultWrap").style.display=S.proj.mode==="mult"?"":"none";
+  el("pAmtWrap").style.display=S.proj.mode==="amount"?"":"none";
+}
+
+["secEquity","secMult"].forEach(function(id){
+  var d=el(id);
+  if(d) d.addEventListener("toggle",function(){
+    if(!d.open) return;
+    var c=compute();
+    if(id==="secEquity") drawEquity(c); else drawMult(c);
+  });
+});
+
+var rzTimer;
+window.addEventListener("resize",function(){
+  clearTimeout(rzTimer);
+  rzTimer=setTimeout(function(){ var c=compute(); drawEquity(c); drawMult(c); },150);
+});
+
+/* ================= go ================= */
+restore();
+syncSettings();
+renderCats();
+renderPicker("");
+el("dateIn").value=todayISO();
+render();
+})();
+</script>
+</body>
+</html>
