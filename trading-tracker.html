@@ -1984,18 +1984,27 @@ function persist(){
 function isArr(x){ return Object.prototype.toString.call(x)==="[object Array]"; }
 function adopt(o){
   if(!o||typeof o!=="object") return;
-  if(isFinite(o.capital)) S.capital=o.capital;
-  if(isFinite(o.split)) S.split=o.split;
-  if(isFinite(o.deploy)) S.deploy=Math.max(0.01,Math.min(1,o.deploy));
-  if(isFinite(o.goal)) S.goal=o.goal;
-  S.hitOverride=isFinite(o.hitOverride)?o.hitOverride:null;
-  if(typeof o.protect==="boolean") S.protect=o.protect;
   /* Files written before the plan band have no planSet. Anyone already carrying
      entries has plainly settled on their numbers, so adopt them as set rather than
      stopping a ladder in progress to ask. */
-  S.planSet = (o.planSet===true) || (isArr(o.entries)&&o.entries.length>0)
-                                 || (isArr(o.trades)&&o.trades.length>0);
+  var hadEntries = (isArr(o.entries)&&o.entries.length>0)
+                || (isArr(o.trades)&&o.trades.length>0);
+  S.planSet = (o.planSet===true) || hadEntries;
   S.demo = (o.demo===true);
+  S.hitOverride=isNum(o.hitOverride)?o.hitOverride:null;
+  if(typeof o.protect==="boolean") S.protect=o.protect;
+
+  /* No plan flag and no entries means the file predates the plan band and holds
+     nothing but the defaults that build shipped with — 2500 / 50% / 5.00x / 33% / 1m.
+     They were never chosen by anyone, so they are not restored; adopting them would
+     bring the old numbers straight back on the next load and make the empty start a
+     lie for exactly the people who already had the app open. */
+  if(S.planSet){
+    if(isNum(o.capital)) S.capital=o.capital;
+    if(isNum(o.split)) S.split=o.split;
+    if(isNum(o.deploy)) S.deploy=Math.max(0.01,Math.min(1,o.deploy));
+    if(isNum(o.goal)) S.goal=o.goal;
+  }
   if(isArr(o.entries)){
     S.entries=o.entries;
     /* stamp older files so changing the default never rewrites past trades */
@@ -2023,10 +2032,13 @@ function adopt(o){
   if(o.basis==="banked"||o.basis==="equity") S.basis=o.basis;
   if(o.proj&&typeof o.proj==="object"){
     S.proj.mode=(o.proj.mode==="amount")?"amount":"mult";
-    S.proj.start=isFinite(o.proj.start)?o.proj.start:null;
-    if(isFinite(o.proj.count)) S.proj.count=Math.max(1,Math.min(25,o.proj.count));
-    if(isFinite(o.proj.mult)) S.proj.mult=o.proj.mult;
-    if(isFinite(o.proj.amount)) S.proj.amount=o.proj.amount;
+    S.proj.start=isNum(o.proj.start)?o.proj.start:null;
+    if(isNum(o.proj.count)) S.proj.count=Math.max(1,Math.min(25,o.proj.count));
+    /* The payoff target is a plan number too — same rule as capital and skim above. */
+    if(S.planSet){
+      if(isNum(o.proj.mult)) S.proj.mult=o.proj.mult;
+      if(isNum(o.proj.amount)) S.proj.amount=o.proj.amount;
+    }
   }
 }
 function restore(){
