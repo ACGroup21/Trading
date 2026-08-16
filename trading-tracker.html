@@ -1595,14 +1595,21 @@ document.addEventListener("click",function(ev){
 });
 document.addEventListener("input",updateClears);
 
+/* Clear means clear. This used to refill "What you put in" with the suggested stake,
+   so the first and most prominent box on the form never appeared to react — which
+   reads as a broken button, not a helpful default. The suggestion survives as a
+   placeholder, and render() restores it as a value the moment focus leaves the field
+   (its guard on line ~1129 is why we focus startIn here rather than finishIn). */
 function clearTradeForm(){
-  var c=compute();
-  el("startIn").value=round2(c.capital*S.deploy);
+  var c=compute(),si=el("startIn");
+  si.value=""; si.placeholder=String(round2(c.capital*S.deploy));
   el("finishIn").value=""; el("multIn").value=""; el("mktSearch").value="";
   el("dateIn").value=todayISO();
+  activeCat="All";
   lastEdited="finish";
-  renderPicker(""); updatePreview(); updateClears();
-  el("finishIn").focus();
+  renderCats(); renderPicker(""); renderDeploy(); renderBank();
+  updatePreview(); updateClears();
+  si.focus();
 }
 el("clearForm2").addEventListener("click",clearTradeForm);
 
