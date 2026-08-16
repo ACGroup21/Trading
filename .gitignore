@@ -6,3 +6,4 @@ Thumbs.db
 # your exported data is yours, not the repo's
 trading-tracker-data.json
 trading-tracker.csv
+_to_delete/
