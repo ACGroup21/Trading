@@ -160,6 +160,9 @@
   .saved{font-size:13px;color:var(--good-ink);opacity:0;transition:opacity .2s}
   .saved.on{opacity:1}
   .danger{color:var(--critical);border-color:var(--critical)}
+  /* armed = one more click will do it. Filled, not just relabelled, so it reads as
+     live rather than as a button that did nothing. */
+  .danger.arming{background:var(--critical);border-color:var(--critical);color:#fff}
 
   /* ---- collapsible sections ---- */
   details.sect{background:var(--surface);border:1px solid var(--border);
@@ -2039,16 +2042,26 @@ el("fileIn").addEventListener("change",function(){
   rd.readAsText(f); this.value="";
 });
 
-var resetArmed=false,resetTimer;
-el("resetBtn").addEventListener("click",function(){
-  var b=this;
-  if(!resetArmed){
-    resetArmed=true; b.textContent="Sure? Click again to delete";
-    clearTimeout(resetTimer);
-    resetTimer=setTimeout(function(){ resetArmed=false; b.textContent="Clear all entries"; },4000);
-    return;
-  }
-  resetArmed=false; b.textContent="Clear all entries";
+/* Both destructive buttons share one two-click confirm. The armed window used to be
+   four seconds and changed only the label, which is how a working button comes to look
+   broken: you click, start reading "Sure?", and it has disarmed itself before you
+   decide. Twelve seconds, and the armed state fills the button in red. */
+function armConfirm(id,restLabel,armedLabel,run){
+  var b=el(id),armed=false,timer=null;
+  function rest(){ armed=false; b.textContent=restLabel; b.classList.remove("arming"); }
+  b.addEventListener("click",function(){
+    if(!armed){
+      armed=true;
+      b.textContent=(typeof armedLabel==="function")?armedLabel():armedLabel;
+      b.classList.add("arming");
+      clearTimeout(timer); timer=setTimeout(rest,12000);
+      return;
+    }
+    clearTimeout(timer); rest(); run();
+  });
+}
+
+armConfirm("resetBtn","Clear all entries","Sure? Click again to delete",function(){
   S.entries=[]; render();
 });
 
@@ -2057,17 +2070,10 @@ el("resetBtn").addEventListener("click",function(){
    localStorage.clear(): this file is served from an origin shared with unrelated
    projects, and clear() would take theirs too. Copying factoryDefaults() over S and
    letting persist() rewrite KEY touches nothing but our own key. */
-var wipeArmed=false,wipeTimer=null;
-el("wipeBtn").addEventListener("click",function(){
-  var b=this,n=S.entries.length;
-  if(!wipeArmed){
-    wipeArmed=true;
-    b.textContent=n?("Sure? This deletes "+n+" entr"+(n===1?"y":"ies")+" and your plan"):"Sure? Click again to reset";
-    clearTimeout(wipeTimer);
-    wipeTimer=setTimeout(function(){ wipeArmed=false; b.textContent="Reset everything"; },4000);
-    return;
-  }
-  wipeArmed=false; b.textContent="Reset everything";
+armConfirm("wipeBtn","Reset everything",function(){
+  var n=S.entries.length;
+  return n?("Sure? This deletes "+n+" entr"+(n===1?"y":"ies")+" and your plan"):"Sure? Click again to reset";
+},function(){
   var d=factoryDefaults(),k;
   for(k in d) if(d.hasOwnProperty(k)) S[k]=d[k];
   el("mktSearch").value=""; el("finishIn").value=""; el("multIn").value="";
