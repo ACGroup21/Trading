@@ -74,8 +74,34 @@ are recorded as `cash` entries so they are visible, never as an automatic top-up
 rate, staking 100% of the pot gives roughly a 0.2% chance of completing the ladder;
 staking 50% gives ~99%. The identity is `f = 2/(m-1)` — deploying half into a 5x
 produces the same rung progression as all-in into a 3x, but a loss costs half the pot
-instead of the plan. Defaults are therefore 50% deploy / 5.00x goal / 33% skim, and
-the mechanics line under the preview recomputes from whatever is set.
+instead of the plan. 50% deploy / 5.00x goal / 33% skim is what that reasoning
+recommends — but see below: it is the demo's configuration, not a default the app
+applies for you.
+
+**The app starts empty, and empty means empty.** `factoryDefaults()` sets capital and
+goal to 0 and deploy, split and `proj.mult` to `null`. Those five figures decide the
+outcome more than any single trade does, and they used to arrive pre-filled — 2500 /
+50% / 5.00x / 33% / 1m — reading as the owner's own numbers before any decision had
+been made. Worse, "reset everything" restored them, so clearing never actually
+cleared. **Do not reintroduce a starting value for any of the five.** An unset number
+renders as an empty box, never as a zero standing in for a choice.
+
+`S.planSet` gates this. The plan band at the top sets all five in one place and
+collapses to a summary once saved; logging a trade is locked until it is. That lock is
+load-bearing — it is why no render path can meet a `null` plan number.
+
+**The plan band is a second way in, not a second copy.** It writes to the same
+`S.capital` / `S.deploy` / `S.split` / `S.proj.mult` / `S.goal` as the controls further
+down, and `renderPlan()` keeps the duplicated boxes in step. The per-trade selects on
+the form still win for their own trade; the band only supplies the default they start
+from, which is what keeps history stable when the plan changes.
+
+**Demo mode owns the worked example.** `demoState()` carries the recommended
+configuration and four trades that are deliberately not a clean sweep — one wipe and
+one profitable miss, giving a 50% hit rate against a 75% win rate. It exists to show
+the win-versus-hit distinction, not to flatter the strategy; keep it honest if you
+touch it. `S.demo` shows the banner, and clearing it goes back to empty via the same
+`loadState(factoryDefaults())` that reset uses.
 
 **A separate "reserve pot" was considered and rejected.** Holding a reserve and
 refilling after a wipe is just a lower deployment fraction wearing a disguise, and a
@@ -96,6 +122,20 @@ the realised hit rate once there are 5+ trades with a target, and says plainly t
 as the hit rate fed in.
 
 ## Gotchas
+
+**`isFinite(null)` is `true`.** `null` coerces to `0`, so a plain `isFinite()` check
+waves an unset plan number straight through and then throws on `.toFixed`. That is
+exactly how the first pass at the empty state broke `renderSummaries`. Anything that
+can be "not chosen yet" must be tested with `isNum()`, which checks `typeof` first.
+
+**A destructive confirm has to outlive being read.** Both `resetBtn` and `wipeBtn` arm
+on first click and fire on the second, through the shared `armConfirm()` helper. The
+window was four seconds and changed only the label — long enough to start reading
+"Sure?", not long enough to decide, so a working button was reported as a dead one.
+Twelve seconds, and the armed state fills the button rather than just relabelling it.
+
+**Never `localStorage.clear()`.** The live site shares an origin with unrelated
+projects; `clear()` would take theirs too. `store()`/`fetchStore()` touch one key.
 
 **Storage is scoped to the origin, and `file://` has no useful origin.** Opened from
 disk, `trading-tracker_3.html` cannot see what was entered into `trading-tracker_1.html` —
