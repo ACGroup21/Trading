@@ -4,14 +4,24 @@ A single self-contained HTML file. No build step, no dependencies, no network ca
 
 ## Use it
 
-Open `trading-tracker.html` in a browser. Log each trade by what you put in and
-either what you finished with or the multiplier you got — the two fill each other.
+**<https://acgroup21.github.io/Trading/>** — no download, no install. Log each trade
+by what you put in and either what you finished with or the multiplier you got, and
+the two fill each other.
+
+You can still open `trading-tracker.html` from disk if you prefer; it behaves the same.
 
 ## Where your data lives
 
-Saved data is keyed to the file's **exact path**. Open a second copy under a
-different filename and it starts empty. Keep one canonical file and overwrite it
-in place; use **Download my data** for backups and to move between machines.
+In your browser, on the machine you're using. Nothing is sent anywhere.
+
+Storage belongs to the **site**, not the file. On the live link above every page
+shares one store, so it just works and keeps working. Local copies are the opposite:
+each file opened from disk is its own island, and a second copy under a different
+filename starts empty — so if you work from disk, keep one file and overwrite it in
+place rather than saving numbered versions.
+
+Moving between the two, or between machines, is what **Download my data** and
+**Load a data file** are for. Do that before switching, not after.
 
 ## What it does
 

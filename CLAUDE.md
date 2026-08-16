@@ -97,10 +97,27 @@ as the hit rate fed in.
 
 ## Gotchas
 
-**Saved data is keyed to the file's exact path.** `trading-tracker_3.html` cannot see
-what was entered into `trading-tracker_1.html`. The owner lost data this way. Always
-overwrite one canonical path; never hand back a numbered copy. The JSON export is the
-only thing that moves data between origins — including to a GitHub-served copy.
+**Storage is scoped to the origin, and `file://` has no useful origin.** Opened from
+disk, `trading-tracker_3.html` cannot see what was entered into `trading-tracker_1.html` —
+the owner lost data this way. Always overwrite one canonical path; never hand back a
+numbered copy.
+
+Served over `https://` this reverses: `localStorage` is keyed to scheme + host + port and
+the path plays no part, so every URL under the live site shares one store. Verified on the
+deployed copy — a key written at `/Trading/trading-tracker.html` reads back at `/`.
+
+**The live site is the canonical copy:** <https://acgroup21.github.io/Trading/>. Pages
+serves `main` from the repo root; `index.html` is a redirect stub to `trading-tracker.html`,
+not a second copy of the app. Local files and the live site are still separate origins, so
+the JSON export remains the only way to carry data from a `file://` copy to the live one.
+
+**The live site shares its origin with every other project on `acgroup21.github.io`.**
+The tracker's `tradingTracker.v2` sits alongside unrelated keys from the other apps
+published under that account. Namespacing keeps them apart, and `store()`/`fetchStore()`
+only ever `setItem`/`getItem` that one key — there is no `localStorage.clear()` anywhere
+in the file, so "Clear all entries" writes defaults over its own key and leaves the other
+apps alone. **Keep it that way**; a `clear()` added here would now wipe unrelated projects.
+Note that the browser's own "clear site data" for that host still takes all of them at once.
 
 **Charts must not draw while their section is collapsed.** `drawEquity()` and
 `drawMult()` bail out when the SVG has zero width, and a `toggle` listener redraws on
