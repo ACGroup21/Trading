@@ -38,6 +38,33 @@
   .two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
   @media (max-width:860px){.two{grid-template-columns:1fr}}
 
+  /* ---- the plan band ---- */
+  .plan{border-left:3px solid var(--series-1)}
+  .plan.unset{border-left-color:var(--warn)}
+  .plangrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+            gap:14px;align-items:end}
+  .plansum{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;font-size:15px}
+  .plansum b{font-weight:650;font-size:17px;letter-spacing:-0.01em}
+  .plansum .sep{color:var(--axis)}
+  .planmech{color:var(--ink-2);font-size:13px;line-height:1.55;margin:12px 0 0}
+  .planmech b{color:var(--ink);font-weight:650}
+
+  /* ---- log card, locked until a plan exists ---- */
+  .lockmsg{display:none;margin:0 0 16px;padding:12px 14px;border-radius:10px;
+           background:var(--surface-2);border:1px solid var(--warn);
+           color:var(--ink-2);font-size:13.5px}
+  .locked .lockmsg{display:block}
+  .locked .form,.locked .preview,.locked .box,.locked #mechNote,
+  .locked .mktrow,.locked .cmcbar,.locked .found{opacity:0.4;pointer-events:none}
+
+  /* ---- demo banner ---- */
+  .demobar{display:none;align-items:center;gap:12px;flex-wrap:wrap;
+           margin-bottom:20px;padding:12px 16px;border-radius:var(--radius);
+           background:var(--surface-2);border:1px solid var(--warn)}
+  .demobar.on{display:flex}
+  .demobar .txt{font-size:13.5px;color:var(--ink-2);flex:1;min-width:220px}
+  .demobar b{color:var(--ink);font-weight:650}
+
   /* ---- stat tiles ---- */
   .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
   .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
@@ -222,12 +249,61 @@
   <h1>Trading Ladder Tracker</h1>
   <p class="sub">Log what you put in and what you got back. Everything else is worked out for you.</p>
 
+  <div class="demobar" id="demoBar">
+    <span class="txt"><b>Demo data.</b> These are example numbers, not your trades. Clear it whenever you like &mdash; your own tracker starts empty.</span>
+    <button class="ghost" id="demoExit">Clear the demo</button>
+  </div>
+
+  <!-- ============ YOUR PLAN ============ -->
+  <div class="card plan" id="planCard">
+    <h2 id="planH">Your plan</h2>
+    <p class="hint" id="planHint"></p>
+
+    <div class="plangrid" id="planGrid">
+      <div>
+        <label for="planCap">Starting capital
+          <span class="q">What the ladder begins with.</span></label>
+        <div class="money"><span>&pound;</span><input id="planCap" class="hasclr" type="number" step="0.01" min="0" inputmode="decimal"><button type="button" class="clr" data-clr="planCap" title="Clear">&times;</button></div>
+      </div>
+      <div>
+        <label for="planDeploy">Stake per trade (%)
+          <span class="q">Share of the pot that goes in.</span></label>
+        <input id="planDeploy" class="plain" type="number" step="1" min="1" max="100" inputmode="decimal">
+      </div>
+      <div>
+        <label for="planMult">Payoff target
+          <span class="q">The multiple you close at.</span></label>
+        <input id="planMult" class="plain" type="number" step="0.05" min="1" inputmode="decimal">
+      </div>
+      <div>
+        <label for="planBank">Bank on each win (%)
+          <span class="q">Locked away, never traded again.</span></label>
+        <input id="planBank" class="plain" type="number" step="1" min="0" max="100" inputmode="decimal">
+      </div>
+      <div>
+        <label for="planGoal">Goal
+          <span class="q">What the ladder is aiming at.</span></label>
+        <div class="money"><span>&pound;</span><input id="planGoal" class="hasclr" type="number" step="1000" min="0" inputmode="decimal"><button type="button" class="clr" data-clr="planGoal" title="Clear">&times;</button></div>
+      </div>
+    </div>
+
+    <div class="plansum" id="planSum"></div>
+    <p class="planmech" id="planMech"></p>
+
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="planSave">Save my plan</button>
+      <button class="ghost" id="planEdit">Change plan</button>
+      <button class="ghost" id="demoBtn">Show me a worked example</button>
+    </div>
+  </div>
+
   <div class="tiles" id="tiles"></div>
 
   <!-- ============ LOG A TRADE ============ -->
-  <div class="card">
+  <div class="card" id="logCard">
     <h2>Log a trade</h2>
     <p class="hint">Two numbers and you're done.</p>
+    <p class="lockmsg" id="lockMsg">Set your plan above first &mdash; a trade is only meaningful measured against one.</p>
     <div class="form">
       <div>
         <label for="startIn">1 &nbsp;What you put in
@@ -822,16 +898,23 @@ function pool(){
 /* Factory state, returned fresh on every call. "Reset everything" copies this back
    over S rather than reassigning it, so nothing holding a reference goes stale. */
 function factoryDefaults(){
+  /* Empty means empty. There were defaults here once — £2,500, 50%, 5.00x, 33% — and
+     they showed up as though they were the owner's own numbers before a single
+     decision had been made. The five plan figures now start unset, and the app says
+     so instead of quietly filling them in. Demo mode is where the worked example
+     lives. */
   return {
-    capital:2500,
-    split:0.33,                 /* skim a third of the close, not half */
-    deploy:0.5,                 /* stake half the pot, never all of it */
+    capital:0,
+    split:null,                 /* share of each close that gets locked away */
+    deploy:null,                /* share of the pot that goes into a trade */
     hitOverride:null,           /* null = use your realised hit rate */
-    goal:1000000,               /* the number the odds are measured against */
+    goal:0,                     /* the number the odds are measured against */
     protect:true,
+    planSet:false,              /* false = nothing here is yours yet */
+    demo:false,                 /* true = these are example numbers, not real trades */
     entries:[],                 /* {k:"trade",date,mkt,start,finish|null} | {k:"cash",date,dir,pot,amount} */
     custom:[],                  /* names you typed in yourself */
-    proj:{ mode:"mult", start:null, count:10, mult:5, amount:2500 },
+    proj:{ mode:"mult", start:null, count:10, mult:null, amount:0 },
     basis:"equity",
     targets:[]                  /* [{v,basis}] — fixed once set */
   };
@@ -843,11 +926,15 @@ function el(id){ return document.getElementById(id); }
 function num(e){ var v=parseFloat(e.value); return isFinite(v)?v:NaN; }
 function round2(n){ return Math.round(n*100)/100; }
 function gbp(n,dp){
-  if(!isFinite(n)) n=0;
+  if(!isNum(n)) n=0;
   if(dp===undefined) dp=(Math.abs(n)>=1000||n===Math.round(n))?0:2;
   return (n<0?"−£":"£")+Math.abs(n).toLocaleString("en-GB",{minimumFractionDigits:dp,maximumFractionDigits:dp});
 }
-function xm(n){ return (isFinite(n)?n:0).toFixed(2)+"x"; }
+/* isFinite(null) is true — null coerces to 0 — so a plain isFinite() guard lets an
+   unset plan number straight through and then throws on .toFixed. Anything that can
+   be "not chosen yet" must be checked with this instead. */
+function isNum(v){ return typeof v==="number" && isFinite(v); }
+function xm(n){ return (isNum(n)?n:0).toFixed(2)+"x"; }
 function esc(s){ return String(s).replace(/[&<>"]/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m];}); }
 function fmtDate(d){
   var p=String(d).split("-"); if(p.length!==3) return esc(d);
@@ -883,8 +970,10 @@ function splitClose(start,finish,sp){
 var BANKS=[0,20,25,30,33,40,50,60,66,70,75,80,100];
 var DEPLOYS=[10,20,25,33,40,50,60,75,100];
 function renderDeploy(){
-  var cur=Math.round(S.deploy*1000)/10,list=DEPLOYS.slice(),h="",i;
-  if(list.indexOf(cur)<0){ list.push(cur); list.sort(function(a,b){return a-b;}); }
+  var unset=!isNum(S.deploy);
+  var cur=unset?null:Math.round(S.deploy*1000)/10,list=DEPLOYS.slice(),h="",i;
+  if(unset) h+='<option value="">&mdash; set your plan first &mdash;</option>';
+  else if(list.indexOf(cur)<0){ list.push(cur); list.sort(function(a,b){return a-b;}); }
   for(i=0;i<list.length;i++){
     var v=list[i],lab=(v%1?v.toFixed(1):v)+"%";
     if(v===50) lab="50% (recommended)";
@@ -892,7 +981,7 @@ function renderDeploy(){
     h+='<option value="'+v+'">'+lab+'</option>';
   }
   el("deployIn").innerHTML=h;
-  el("deployIn").value=String(cur);
+  el("deployIn").value=unset?"":String(cur);
 }
 function formDeploy(){
   var v=parseFloat(el("deployIn").value);
@@ -904,8 +993,10 @@ function rungGrowth(f,m,k){
   return 1-stake+close-sp.bank;
 }
 function renderBank(){
-  var cur=Math.round(S.split*1000)/10,list=BANKS.slice(),h="",i;
-  if(list.indexOf(cur)<0){ list.push(cur); list.sort(function(a,b){return a-b;}); }
+  var unset=!isNum(S.split);
+  var cur=unset?null:Math.round(S.split*1000)/10,list=BANKS.slice(),h="",i;
+  if(unset) h+='<option value="">&mdash; set your plan first &mdash;</option>';
+  else if(list.indexOf(cur)<0){ list.push(cur); list.sort(function(a,b){return a-b;}); }
   for(i=0;i<list.length;i++){
     var v=list[i],lab=(v%1?v.toFixed(1):v)+"% banked";
     if(v===50) lab+=" (half)";
@@ -915,7 +1006,7 @@ function renderBank(){
     h+='<option value="'+v+'">'+lab+'</option>';
   }
   el("bankIn").innerHTML=h;
-  el("bankIn").value=String(cur);
+  el("bankIn").value=unset?"":String(cur);
 }
 
 /* ================= the engine ================= */
@@ -1120,13 +1211,15 @@ function render(){
     tile("","Trades closed",String(c.trades.length),
       c.trades.length?st.bestWin+" best run · avg "+xm(avg):"&nbsp;");
 
+  renderPlan();
   renderNeeds(c);
   renderEntries(c);
   renderRecord(c,st,avg);
   renderByMarket(c);
 
   var si=el("startIn");
-  if(document.activeElement!==si) si.value=round2(c.capital*S.deploy);
+  if(document.activeElement!==si)
+    si.value=(S.planSet&&isNum(S.deploy))?round2(c.capital*S.deploy):"";
   syncPair();
 
   renderProjection();
@@ -1156,8 +1249,9 @@ function renderSummaries(c,st,avg){
   set("sumNeeds", nm ? ("next milestone "+gbp(nm.v)) : (c.capital>0?gbp(c.capital)+" free":""));
   set("sumEquity", gbp(c.equity)+" total");
   set("sumMult", c.trades.length ? (c.trades.length+" closed · avg "+xm(avg)) : "nothing closed yet");
-  set("sumProj", (S.proj.mode==="amount" ? ("+"+gbp(S.proj.amount)+" a trade") : (xm(S.proj.mult)+" a trade"))
-      +" · "+S.proj.count+" ahead");
+  set("sumProj", !S.planSet ? "no plan set"
+      : ((S.proj.mode==="amount" ? ("+"+gbp(S.proj.amount)+" a trade") : (xm(S.proj.mult)+" a trade"))
+         +" · "+S.proj.count+" ahead"));
   set("sumMs", ms.length ? (ms.length+" set · "+hitN+" hit") : "none set");
   set("sumRecord", c.trades.length
       ? (Math.round(wins/c.trades.length*100)+"% win rate · avg "+xm(avg)) : "no trades yet");
@@ -1263,6 +1357,8 @@ function renderByMarket(c){
 }
 
 function renderMech(){
+  /* Nothing to say about mechanics before there is a plan to have mechanics. */
+  if(!S.planSet){ el("mechNote").innerHTML=""; return; }
   var f=formDeploy(),m=goalMult(),k=formSplit();
   var g=rungGrowth(f,m,k);
   var c=compute(),goal=isFinite(S.goal)?S.goal:0,rungs=0;
@@ -1602,7 +1698,7 @@ document.addEventListener("input",updateClears);
    (its guard on line ~1129 is why we focus startIn here rather than finishIn). */
 function clearTradeForm(){
   var c=compute(),si=el("startIn");
-  si.value=""; si.placeholder=String(round2(c.capital*S.deploy));
+  si.value=""; si.placeholder=isNum(S.deploy)?String(round2(c.capital*S.deploy)):"0.00";
   el("finishIn").value=""; el("multIn").value=""; el("mktSearch").value="";
   el("dateIn").value=todayISO();
   activeCat="All";
@@ -1780,7 +1876,96 @@ function showTip(ev,title,rows){
 }
 function hideTip(){ tipEl.style.opacity=0; }
 
+/* ================= the plan band =================
+   Deployment fraction, payoff target and skim used to live as silent defaults —
+   50/5.00x/33 arrived pre-filled and nothing ever asked whether they were yours.
+   They are the numbers that decide the outcome, so they are now stated at the top
+   and set deliberately before the first trade. The per-trade selects on the form
+   still exist and still win for that trade; this band is only the default they
+   start from, which is what keeps history stable when the plan changes. */
+/* Writes a plan number into a box, leaving it empty when the number is not set.
+   pct converts a 0-1 fraction to a percentage for display. */
+function planField(id,v,pct){
+  var e=el(id); if(!e||document.activeElement===e) return;
+  e.value=!isNum(v)?"":(pct?(Math.round(v*1000)/10):v);
+}
+
+function planComplete(){
+  return isNum(S.capital)&&S.capital>0
+      && isNum(S.deploy)&&S.deploy>0&&S.deploy<=1
+      && isNum(S.split)&&S.split>=0&&S.split<=1
+      && isNum(S.proj.mult)&&S.proj.mult>1
+      && isNum(S.goal)&&S.goal>0;
+}
+
+/* What the plan implies, from the plan's own numbers rather than the form's. */
+function planImplication(){
+  var f=S.deploy,m=S.proj.mult,k=S.split,g=rungGrowth(f,m,k),rungs=0;
+  if(S.goal>0&&g>1){
+    var pot=S.capital,safe=0;
+    while(pot+safe<S.goal&&rungs<500){
+      var st=pot*f,cl=st*m,sp=splitClose(st,cl,k);
+      pot=pot-st+cl-sp.bank; safe+=sp.bank; rungs++;
+    }
+  }
+  return "Staking <b>"+Math.round(f*100)+"%</b> at "+xm(m)+" and banking <b>"
+    +Math.round(k*100)+"%</b> grows the pot <b>"+g.toFixed(2)+"&times;</b> a win"
+    +(rungs&&rungs<500 ? (", so <b>"+rungs+"</b> clean win"+(rungs===1?"":"s")
+        +" carries "+gbp(S.capital)+" to "+gbp(S.goal)+".") : ".")
+    +" A losing trade costs "+Math.round(f*100)+"% of the pot"
+    +(f>=0.999?" — the whole thing, which ends the ladder."
+              :", not the ladder.");
+}
+
+function renderPlan(){
+  var set=!!S.planSet;
+  el("planCard").classList.toggle("unset",!set);
+  el("planH").textContent=set?"Your plan":"Set your plan";
+  el("planHint").textContent=set
+    ? "Fixed for the run. Change it deliberately — every trade below is measured against it."
+    : "These five numbers decide the outcome more than any single trade does. Set them before your first one; nothing here is a default worth accepting unread.";
+  el("planGrid").style.display=set?"none":"";
+  el("planSum").style.display=set?"":"none";
+  el("planSave").style.display=set?"none":"";
+  el("planEdit").style.display=set?"":"none";
+  el("planSave").disabled=!planComplete();
+  el("demoBtn").style.display=(!set&&!S.demo)?"":"none";
+  el("demoBar").classList.toggle("on",!!S.demo);
+  el("logCard").classList.toggle("locked",!set);
+
+  /* An unset number shows as an empty box, never as a zero standing in for a
+     decision. null is the only "not chosen" marker for the three percentages —
+     0% banked is a real answer, so it must not read as blank. */
+  planField("planCap",  S.capital>0?S.capital:null);
+  planField("planDeploy", S.deploy, true);
+  planField("planMult", S.proj.mult);
+  planField("planBank", S.split, true);
+  planField("planGoal", S.goal>0?S.goal:null);
+
+  /* Capital, skim, goal and target are also editable further down. One state, so
+     keep the other copies honest rather than letting two fields disagree. */
+  planField("capIn",   S.capital>0?S.capital:null);
+  planField("splitIn", S.split, true);
+  planField("goalIn",  S.goal>0?S.goal:null);
+  planField("pMult",   S.proj.mult);
+
+  if(set){
+    el("planSum").innerHTML=
+      "<span><b>"+gbp(S.capital)+"</b> starting</span><span class='sep'>&middot;</span>"
+     +"<span>stake <b>"+Math.round(S.deploy*100)+"%</b></span><span class='sep'>&middot;</span>"
+     +"<span>target <b>"+xm(S.proj.mult)+"</b></span><span class='sep'>&middot;</span>"
+     +"<span>bank <b>"+Math.round(S.split*100)+"%</b></span><span class='sep'>&middot;</span>"
+     +"<span>goal <b>"+gbp(S.goal)+"</b></span>";
+  }
+  el("planMech").innerHTML=planComplete()?planImplication()
+    :"Fill all five and this line will show what they add up to.";
+}
+
 function planNote(){
+  if(!S.planSet||!planComplete()){
+    el("planNote").innerHTML="<b>No plan set.</b> Fill in the five numbers at the top and this will show what they add up to.";
+    return;
+  }
   var p=goalPath(20),g=goalMult();
   el("planNote").innerHTML="<b>What this goal implies.</b> Starting at "+gbp(S.capital)
     +" and hitting "+xm(g)+" every single time, your trading pot grows "+(g*(1-S.split)).toFixed(2)
@@ -1805,6 +1990,12 @@ function adopt(o){
   if(isFinite(o.goal)) S.goal=o.goal;
   S.hitOverride=isFinite(o.hitOverride)?o.hitOverride:null;
   if(typeof o.protect==="boolean") S.protect=o.protect;
+  /* Files written before the plan band have no planSet. Anyone already carrying
+     entries has plainly settled on their numbers, so adopt them as set rather than
+     stopping a ladder in progress to ask. */
+  S.planSet = (o.planSet===true) || (isArr(o.entries)&&o.entries.length>0)
+                                 || (isArr(o.trades)&&o.trades.length>0);
+  S.demo = (o.demo===true);
   if(isArr(o.entries)){
     S.entries=o.entries;
     /* stamp older files so changing the default never rewrites past trades */
@@ -1981,6 +2172,29 @@ function bindSetting(id,key,transform){
     render();
   });
 }
+/* The plan band writes to the same S fields as the controls further down — there is
+   no second copy of the plan, only a second way in. */
+function bindPlan(id,apply){
+  el(id).addEventListener("input",function(){
+    var v=parseFloat(this.value);
+    if(!isFinite(v)){ el("planSave").disabled=true; return; }
+    apply(v); render();
+  });
+}
+bindPlan("planCap",function(v){ S.capital=Math.max(0,v); });
+bindPlan("planDeploy",function(v){ S.deploy=Math.max(0.01,Math.min(1,v/100)); });
+bindPlan("planMult",function(v){ S.proj.mult=Math.max(1,v); });
+bindPlan("planBank",function(v){ S.split=Math.max(0,Math.min(1,v/100)); });
+bindPlan("planGoal",function(v){ S.goal=Math.max(0,v); });
+
+el("planSave").addEventListener("click",function(){
+  if(!planComplete()) return;
+  S.planSet=true; render();
+});
+el("planEdit").addEventListener("click",function(){
+  S.planSet=false; render(); el("planCap").focus();
+});
+
 bindSetting("capIn","capital");
 bindSetting("splitIn","split",function(v){ return Math.max(0,Math.min(100,v))/100; });
 bindSetting("protectIn","protect");
@@ -2077,16 +2291,42 @@ armConfirm("resetBtn","Clear all entries","Sure? Click again to delete",function
    localStorage.clear(): this file is served from an origin shared with unrelated
    projects, and clear() would take theirs too. Copying factoryDefaults() over S and
    letting persist() rewrite KEY touches nothing but our own key. */
-armConfirm("wipeBtn","Reset everything",function(){
-  var n=S.entries.length;
-  return n?("Sure? This deletes "+n+" entr"+(n===1?"y":"ies")+" and your plan"):"Sure? Click again to reset";
-},function(){
-  var d=factoryDefaults(),k;
-  for(k in d) if(d.hasOwnProperty(k)) S[k]=d[k];
+/* Swap the whole of S for another state and put the page back in step with it.
+   Reset, demo and leaving the demo are all the same operation with a different
+   starting object, so they share one path rather than three that drift apart. */
+function loadState(next){
+  var k;
+  for(k in next) if(next.hasOwnProperty(k)) S[k]=next[k];
+  activeCat="All";
   el("mktSearch").value=""; el("finishIn").value=""; el("multIn").value="";
   el("dateIn").value=todayISO();
   syncSettings(); renderCats(); renderPicker(""); render();
-});
+  window.scrollTo(0,0);
+}
+
+/* The worked example: the recommended configuration, and a run that is deliberately
+   not a clean sweep — one wipe and one profitable miss, so the demo shows the
+   difference between a win and a hit rather than flattering the strategy. */
+function demoState(){
+  var d=factoryDefaults();
+  d.capital=1000; d.deploy=0.5; d.split=0.33; d.goal=4000000;
+  d.proj.mult=5; d.planSet=true; d.demo=true;
+  d.entries=[
+    {k:"trade",date:"2026-03-04",mkt:"Bitcoin", start:500, finish:2500,split:0.33,target:5,deploy:0.5},
+    {k:"trade",date:"2026-04-15",mkt:"Ethereum",start:1088,finish:0,   split:0.33,target:5,deploy:0.5},
+    {k:"trade",date:"2026-05-27",mkt:"Bitcoin", start:544, finish:2720,split:0.33,target:5,deploy:0.5},
+    {k:"trade",date:"2026-07-09",mkt:"S&P 500", start:1183,finish:1775,split:0.33,target:5,deploy:0.5}
+  ];
+  return d;
+}
+
+armConfirm("wipeBtn","Reset everything",function(){
+  var n=S.entries.length;
+  return n?("Sure? This deletes "+n+" entr"+(n===1?"y":"ies")+" and your plan"):"Sure? Click again to reset";
+},function(){ loadState(factoryDefaults()); });
+
+el("demoBtn").addEventListener("click",function(){ loadState(demoState()); });
+el("demoExit").addEventListener("click",function(){ loadState(factoryDefaults()); });
 
 function download(name,content,type){
   var blob=new Blob([content],{type:type});
@@ -2096,16 +2336,16 @@ function download(name,content,type){
   setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },0);
 }
 function syncSettings(){
-  el("capIn").value=S.capital;
-  el("splitIn").value=Math.round(S.split*1000)/10;
+  planField("capIn",S.capital>0?S.capital:null);
+  planField("splitIn",S.split,true);
   renderBank(); renderDeploy();
   el("protectIn").checked=S.protect;
   el("pStart").value=(S.proj.start===null||!isFinite(S.proj.start))?"":S.proj.start;
-  el("pMult").value=S.proj.mult;
-  el("pAmt").value=S.proj.amount;
+  planField("pMult",S.proj.mult);
+  planField("pAmt",S.proj.amount>0?S.proj.amount:null);
   el("pCount").value=S.proj.count;
   el("basisIn").value=S.basis;
-  el("goalIn").value=S.goal;
+  planField("goalIn",S.goal>0?S.goal:null);
   el("modeMult").classList.toggle("on",S.proj.mode==="mult");
   el("modeAmt").classList.toggle("on",S.proj.mode==="amount");
   el("pMultWrap").style.display=S.proj.mode==="mult"?"":"none";
