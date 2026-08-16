@@ -97,6 +97,15 @@
   .taxrow .td{color:var(--ink-2);flex:1;min-width:180px}
   .taxrow .tv{font-weight:650;white-space:nowrap}
 
+  /* ---- saved plans ---- */
+  .saves{padding:18px 0 4px;border-top:1px solid var(--border);margin-top:6px}
+  .saverow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 13px;
+           border-radius:9px;background:var(--surface-2);border:1px solid var(--border);
+           margin-bottom:8px}
+  .saverow .snm{font-weight:650;flex:1;min-width:130px}
+  .saverow .smeta{color:var(--muted);font-size:12.5px;flex:2;min-width:180px}
+  .saverow button{padding:7px 12px;font-size:13px;font-weight:500}
+
   /* ---- AC Digital badge ---- */
   .acfoot{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
           margin-top:30px;padding-top:22px;border-top:1px solid var(--border);
@@ -721,12 +730,19 @@
         </label>
       </div>
     </div>
+    <div class="saves">
+      <h4 class="fh">Saved plans</h4>
+      <p class="found" style="margin:0 0 10px">Keep more than one plan side by side &mdash; a live ladder and a what-if, or the same record with costs on and off. Kept apart from your working tracker, so <b>Reset everything</b> never touches them.</p>
+      <div id="savesList"></div>
+    </div>
+
     <div class="note" id="planNote"></div>
     <div class="row" style="padding:16px 0 20px">
       <button class="ghost" id="saveFile">Download my data</button>
       <button class="ghost" id="loadBtn">Load a data file</button>
       <button class="ghost" id="csvBtn">Export to spreadsheet (CSV)</button>
       <button class="ghost" id="mktReset">Forget my custom markets</button>
+      <button class="ghost" id="saveAsBtn">Save this as&hellip;</button>
       <button class="ghost danger" id="resetBtn">Clear all entries</button>
       <button class="ghost danger" id="wipeBtn">Reset everything</button>
       <input type="file" id="fileIn" accept=".json" style="display:none">
@@ -2843,6 +2859,77 @@ armConfirm("resetBtn","Clear all entries","Sure? Click again to delete",function
    localStorage.clear(): this file is served from an origin shared with unrelated
    projects, and clear() would take theirs too. Copying factoryDefaults() over S and
    letting persist() rewrite KEY touches nothing but our own key. */
+/* ================= saved plans =================
+   The tracker holds ONE state, so trying a second plan meant destroying the first.
+   These keep a named set alongside it — the same idea as Fundable's scenarios.
+
+   Deliberately its own key, not part of S: "Reset everything" replaces S wholesale,
+   and a reset that also swallowed every saved plan would be a trap rather than a
+   reset. Namespaced too, because this origin is shared with unrelated projects. */
+var SAVES_KEY="tradingTracker.saves.v1";
+function savesAll(){
+  try{ return JSON.parse(fetchStore(SAVES_KEY)||"{}")||{}; }catch(e){ return {}; }
+}
+function savesWrite(o){
+  try{ store(SAVES_KEY,JSON.stringify(o)); }
+  catch(e){ alert("Could not save — browser storage may be full."); }
+}
+function saveCurrentAs(){
+  var nm=(prompt("Save this plan as — a name you'll recognise:","")||"").trim();
+  if(!nm) return;
+  var all=savesAll();
+  if(all[nm]&&!confirm('"'+nm+'" already exists. Overwrite it?')) return;
+  var snap=JSON.parse(JSON.stringify(S));
+  snap.savedOn=todayISO();
+  all[nm]=snap; savesWrite(all); renderSaves();
+}
+function openSave(nm){
+  var all=savesAll(); if(!all[nm]) return;
+  if(!confirm('Open "'+nm+'"? This replaces what is on screen. Save the current plan first if you need it.')) return;
+  /* Floor to factory first, then adopt — otherwise anything the saved plan doesn't
+     mention survives from whatever was on screen a moment ago. adopt() also gives
+     the save the same guards and migrations a loaded file gets. */
+  var d=factoryDefaults(),k;
+  for(k in d) if(d.hasOwnProperty(k)) S[k]=d[k];
+  adopt(all[nm]);
+  loadState(JSON.parse(JSON.stringify(S)));
+  renderSaves();
+}
+function deleteSave(nm){
+  if(!confirm('Delete the saved plan "'+nm+'"? This cannot be undone.')) return;
+  var all=savesAll(); delete all[nm]; savesWrite(all); renderSaves();
+}
+function renderSaves(){
+  var all=savesAll(),names=[],k;
+  for(k in all) if(all.hasOwnProperty(k)) names.push(k);
+  names.sort();
+  if(!names.length){
+    el("savesList").innerHTML='<p class="hint" style="margin:0">Nothing saved yet. <b>Save this as&hellip;</b> keeps a copy you can come back to.</p>';
+    return;
+  }
+  var h="",i;
+  for(i=0;i<names.length;i++){
+    var nm=names[i],s=all[nm],n=(s.entries&&s.entries.length)||0;
+    var bits=[n+" entr"+(n===1?"y":"ies")];
+    if(s.planSet&&isNum(s.capital)&&s.capital>0) bits.push(gbp(s.capital)+" start");
+    if(s.planSet&&isNum(s.proj&&s.proj.mult)) bits.push(xm(s.proj.mult)+" target");
+    if(s.fric&&s.fric.on) bits.push("costs on");
+    if(s.savedOn) bits.push("saved "+fmtDate(s.savedOn));
+    h+='<div class="saverow"><span class="snm">'+esc(nm)+'</span>'
+      +'<span class="smeta">'+esc(bits.join(" · "))+'</span>'
+      +'<button class="ghost" data-open="'+esc(nm)+'">Open</button>'
+      +'<button class="ghost danger" data-del="'+esc(nm)+'">Delete</button></div>';
+  }
+  el("savesList").innerHTML=h;
+}
+el("savesList").addEventListener("click",function(ev){
+  var b=ev.target.closest?ev.target.closest("button"):null;
+  if(!b) return;
+  if(b.getAttribute("data-open")) openSave(b.getAttribute("data-open"));
+  else if(b.getAttribute("data-del")) deleteSave(b.getAttribute("data-del"));
+});
+el("saveAsBtn").addEventListener("click",saveCurrentAs);
+
 /* Swap the whole of S for another state and put the page back in step with it.
    Reset, demo and leaving the demo are all the same operation with a different
    starting object, so they share one path rather than three that drift apart. */
@@ -2921,6 +3008,7 @@ window.addEventListener("resize",function(){
 
 /* ================= go ================= */
 restore();
+renderSaves();
 syncSettings();
 renderCats();
 renderPicker("");
