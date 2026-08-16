@@ -57,6 +57,22 @@
   .locked .form,.locked .preview,.locked .box,.locked #mechNote,
   .locked .mktrow,.locked .cmcbar,.locked .found{opacity:0.4;pointer-events:none}
 
+  /* ---- sticking to the plan ---- */
+  .devtol{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+          gap:14px;align-items:end;margin-bottom:18px}
+  .devtol .found{grid-column:1/-1;margin:0}
+  .flag{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;
+        padding:11px 14px;border-radius:10px;background:var(--surface-2);
+        border:1px solid var(--border);border-left:3px solid var(--warn);margin-bottom:8px}
+  .flag.cost{border-left-color:var(--critical)}
+  .flag .who{font-weight:650;white-space:nowrap}
+  .flag .what{color:var(--ink-2);font-size:13.5px;flex:1;min-width:200px}
+  .flag .cost-x{font-weight:650;white-space:nowrap;color:var(--critical)}
+  .devwarn{padding:14px 16px;border-radius:10px;margin:4px 0 16px;font-size:14px;
+           background:rgba(208,59,59,0.07);border:1px solid var(--critical)}
+  .devclear{padding:14px 16px;border-radius:10px;margin:4px 0 16px;font-size:14px;
+            background:rgba(12,163,12,0.07);border:1px solid var(--good)}
+
   /* ---- demo banner ---- */
   .demobar{display:none;align-items:center;gap:12px;flex-wrap:wrap;
            margin-bottom:20px;padding:12px 16px;border-radius:var(--radius);
@@ -539,6 +555,32 @@
     </details>
   </div>
 
+  <!-- ============ STICKING TO THE PLAN ============ -->
+  <details class="sect" id="secDev" style="margin-top:20px">
+    <summary><span class="stitle">Sticking to the plan</span><span class="ssum" id="sumDev"></span></summary>
+    <div class="sbody">
+      <p class="hint">A plan only produces the numbers it promises if you actually follow it. This is where yours drifted, and what the drift cost.</p>
+
+      <div class="devtol">
+        <div>
+          <label for="tolDeploy">Flag a stake more than
+            <span class="q">Percentage points away from your plan stake.</span></label>
+          <input id="tolDeploy" class="plain" type="number" step="0.5" min="0" max="100" inputmode="decimal">
+        </div>
+        <div>
+          <label for="tolExit">Flag a winner closed below
+            <span class="q">Share of your payoff target, as a percentage.</span></label>
+          <input id="tolExit" class="plain" type="number" step="5" min="1" max="100" inputmode="decimal">
+        </div>
+        <p class="found" id="tolNote"></p>
+      </div>
+
+      <div class="mini" id="devStats"></div>
+      <div id="devWarn"></div>
+      <div id="devList"></div>
+    </div>
+  </details>
+
   <!-- ============ ENTRIES ============ -->
   <details class="sect" id="secEntries" style="margin-top:20px">
     <summary><span class="stitle">Your entries</span><span class="ssum" id="sumEntries"></span></summary>
@@ -912,6 +954,11 @@ function factoryDefaults(){
     protect:true,
     planSet:false,              /* false = nothing here is yours yet */
     demo:false,                 /* true = these are example numbers, not real trades */
+    /* Review tolerances, not plan numbers. These do carry sensible starting values
+       because they are shown on screen and editable where they are used, rather than
+       deciding anything on your behalf out of sight. */
+    tolDeploy:2,                /* flag a stake this many points off the plan */
+    tolExit:0.8,                /* flag a winner closed below this share of target */
     entries:[],                 /* {k:"trade",date,mkt,start,finish|null} | {k:"cash",date,dir,pot,amount} */
     custom:[],                  /* names you typed in yourself */
     proj:{ mode:"mult", start:null, count:10, mult:null, amount:0 },
@@ -1022,7 +1069,13 @@ function compute(){
       r.amount=amt; r.pot=e.pot;
     } else {
       var start=isFinite(e.start)?e.start:cap;
+      var potBefore=cap;              /* the pot this trade was sized against */
       r.mkt=e.mkt||""; r.start=start;
+      r.potBefore=potBefore;
+      /* What fraction of the pot actually went in. Derived from the replay rather
+         than read from e.deploy, so it stays true for older entries that predate
+         the field and for any that were edited underneath it. */
+      r.deployActual=potBefore>0?(start/potBefore):null;
       r.split=isFinite(e.split)?e.split:S.split;
       r.target=isFinite(e.target)?e.target:null;
       if(e.finish===null||e.finish===undefined||!isFinite(e.finish)){
@@ -1034,6 +1087,9 @@ function compute(){
         tn++;
         r.n=tn; r.finish=e.finish; r.mult=start>0?e.finish/start:0;
         r.profit=e.finish-start; r.bank=sp.bank; r.roll=sp.roll;
+        /* Pot growth across this trade, excluding the safe haven — the same quantity
+           rungGrowth() returns for a planned win, so the two are comparable. */
+        r.growth=potBefore>0?(cap/potBefore):null;
         trades.push(r);
       }
     }
@@ -1216,6 +1272,7 @@ function render(){
   renderEntries(c);
   renderRecord(c,st,avg);
   renderByMarket(c);
+  renderDeviations(c);
 
   var si=el("startIn");
   if(document.activeElement!==si)
@@ -1317,6 +1374,135 @@ function renderEntries(c){
   }
   el("tbody").innerHTML=h;
 }
+
+/* ================= sticking to the plan =================
+   Two rules are worth measuring because breaking them is silent. Sizing off plan
+   changes what a loss costs without changing what the screen says, and closing a
+   winner short of target still books a profit while quietly adding rungs to the far
+   end of the ladder. Both are caught here, and the second is priced.
+
+   Cost is measured in rungs. A planned win multiplies the pot by g = rungGrowth(),
+   so a trade that multiplied it by a delivered log(a)/log(g) rungs of progress and
+   forfeited the rest of the one it was meant to deliver. Losing trades are not
+   counted: a loss is the strategy working as designed, not a lapse. */
+function deviations(c){
+  var out={drift:[],early:[],topups:[],rungsLost:0,g:null,priced:false,ready:false};
+  if(!S.planSet||!planComplete()) return out;
+  out.ready=true;
+  var f=S.deploy,m=S.proj.mult,g=rungGrowth(f,m,S.split);
+  out.g=g; out.priced=(g>1);
+  var tolD=isNum(S.tolDeploy)?S.tolDeploy:2;
+  var tolX=isNum(S.tolExit)?S.tolExit:0.8;
+  for(var i=0;i<c.rows.length;i++){
+    var r=c.rows[i];
+    if(r.k==="cash"){
+      /* Rule 5: no external top-ups to the trading pot, or the model stops
+         describing reality. Money into the safe haven is not a top-up. */
+      if(r.pot!=="safe"&&r.amount>0) out.topups.push(r);
+      continue;
+    }
+    if(r.open||!isNum(r.deployActual)) continue;
+    var pts=(r.deployActual-f)*100;
+    if(Math.abs(pts)>tolD+1e-9) out.drift.push({r:r,pts:pts});
+    if(r.mult>1&&m>1&&r.mult<m*tolX-1e-9){
+      var lost=0;
+      if(out.priced&&isNum(r.growth)&&r.growth>0)
+        lost=Math.max(0,1-Math.log(r.growth)/Math.log(g));
+      out.early.push({r:r,lost:lost});
+      out.rungsLost+=lost;
+    }
+  }
+  return out;
+}
+
+function renderDeviations(c){
+  var d=deviations(c),tolX=isNum(S.tolExit)?S.tolExit:0.8;
+  planField("tolDeploy",isNum(S.tolDeploy)?S.tolDeploy:2);
+  planField("tolExit",isNum(S.tolExit)?Math.round(S.tolExit*1000)/10:80);
+
+  if(!d.ready){
+    el("tolNote").textContent="";
+    el("devStats").innerHTML="";
+    el("devWarn").innerHTML="";
+    el("devList").innerHTML='<p class="hint" style="margin:0">Set your plan first — there is nothing to deviate from yet.</p>';
+    set("sumDev","no plan set");
+    return;
+  }
+
+  el("tolNote").innerHTML="On your plan that means a stake outside <b>"
+    +fmtPct(S.deploy*100-S.tolDeploy)+"</b> to <b>"+fmtPct(S.deploy*100+S.tolDeploy)
+    +"</b>, or a winner closed below <b>"+xm(S.proj.mult*tolX)+"</b>.";
+
+  var n=d.drift.length+d.early.length+d.topups.length;
+  el("devStats").innerHTML=
+    mini("Rungs lost to early exits", d.priced?d.rungsLost.toFixed(2):"—",
+         d.early.length?("across "+d.early.length+" trade"+(d.early.length===1?"":"s")):"none closed short")+
+    mini("Stakes off plan", String(d.drift.length),
+         "more than "+fmtNum(S.tolDeploy)+" point"+(S.tolDeploy===1?"":"s")+" from plan")+
+    mini("Winners closed early", String(d.early.length),
+         "below "+xm(S.proj.mult*tolX))+
+    mini("Top-ups to the pot", String(d.topups.length),
+         d.topups.length?"the model assumes none":"none, as the plan asks");
+
+  /* The checkpoint the plan asks for: at ten logged trades you have a real hit rate,
+     and below 60% it is the structure that needs changing, not the effort. */
+  var hs=hitStats(c.trades),w="";
+  if(hs.n>=10&&hs.rate!==null&&hs.rate<0.6){
+    w='<div class="devwarn"><b>Your hit rate is '+Math.round(hs.rate*100)
+      +'% over '+hs.n+' trades with a target set.</b> Below about 60% this structure '
+      +'stalls, and that is a reason to change the structure rather than try harder — '
+      +'a smaller stake, a lower payoff target, or stopping. Trying to make up the '
+      +'difference with bigger positions is the move this tracker exists to catch.</div>';
+  } else if(hs.n&&hs.n<10){
+    w='<p class="hint" style="margin:4px 0 16px">'+hs.n+' of 10 trades logged with a target set. '
+      +'At ten you will have a hit rate worth reading; before that it is noise.</p>';
+  }
+  el("devWarn").innerHTML=w;
+
+  if(!n){
+    el("devList").innerHTML=c.trades.length
+      ? '<div class="devclear">Every closed trade sized and exited on plan. Nothing to flag.</div>'
+      : '<p class="hint" style="margin:0">Nothing logged yet.</p>';
+    set("sumDev",c.trades.length?"all on plan":"nothing logged");
+    return;
+  }
+
+  var h="",i;
+  for(i=0;i<d.early.length;i++){
+    var e=d.early[i];
+    h+='<div class="flag cost"><span class="who">Trade '+e.r.n+'</span>'
+      +'<span class="what">closed at <b>'+xm(e.r.mult)+'</b> on a '+xm(S.proj.mult)
+      +' target'+(e.r.mkt?(" &middot; "+esc(e.r.mkt)):"")+" &middot; "+fmtDate(e.r.date)
+      +'</span><span class="cost-x">'+(d.priced?("&minus;"+e.lost.toFixed(2)+" rungs"):"early exit")+'</span></div>';
+  }
+  for(i=0;i<d.drift.length;i++){
+    var v=d.drift[i];
+    h+='<div class="flag"><span class="who">Trade '+v.r.n+'</span>'
+      +'<span class="what">staked <b>'+fmtPct(v.r.deployActual*100)+'</b> of the pot, plan says '
+      +fmtPct(S.deploy*100)+(v.r.mkt?(" &middot; "+esc(v.r.mkt)):"")+" &middot; "+fmtDate(v.r.date)
+      +'</span><span class="cost-x" style="color:var(--warn)">'
+      +(v.pts>0?"+":"&minus;")+fmtNum(Math.abs(v.pts))+' pts</span></div>';
+  }
+  for(i=0;i<d.topups.length;i++){
+    var t=d.topups[i];
+    h+='<div class="flag"><span class="who">Top-up</span>'
+      +'<span class="what"><b>'+gbp(t.amount)+'</b> paid into the trading pot &middot; '
+      +fmtDate(t.date)+'. The plan assumes none — growth counts it as money you put in, '
+      +'not money you made.</span></div>';
+  }
+  el("devList").innerHTML=h;
+  set("sumDev", d.priced&&d.rungsLost>0.005
+    ? (d.rungsLost.toFixed(2)+" rungs lost")
+    : (n+" to look at"));
+}
+
+/* One decimal only when it earns one, so 50 reads as 50 and not 50.0. fmtPct adds the
+   sign; percentage-point figures use fmtNum so they never read as "2% points". */
+function fmtNum(v){
+  if(!isNum(v)) return "—";
+  return (Math.abs(v%1)<0.05?v.toFixed(0):v.toFixed(1));
+}
+function fmtPct(v){ return isNum(v)?(fmtNum(v)+"%"):"—"; }
 
 function renderRecord(c,st,avg){
   var wins=0,losses=0,netP=0,i;
@@ -1993,6 +2179,8 @@ function adopt(o){
   S.demo = (o.demo===true);
   S.hitOverride=isNum(o.hitOverride)?o.hitOverride:null;
   if(typeof o.protect==="boolean") S.protect=o.protect;
+  if(isNum(o.tolDeploy)) S.tolDeploy=Math.max(0,Math.min(100,o.tolDeploy));
+  if(isNum(o.tolExit)) S.tolExit=Math.max(0.01,Math.min(1,o.tolExit));
 
   /* No plan flag and no entries means the file predates the plan band and holds
      nothing but the defaults that build shipped with — 2500 / 50% / 5.00x / 33% / 1m.
@@ -2205,6 +2393,17 @@ el("planSave").addEventListener("click",function(){
 });
 el("planEdit").addEventListener("click",function(){
   S.planSet=false; render(); el("planCap").focus();
+});
+
+/* Review tolerances. Editable where they are used, so the thresholds a flag depends
+   on are never a number you have to take on trust. */
+el("tolDeploy").addEventListener("input",function(){
+  var v=parseFloat(this.value); if(!isNum(v)) return;
+  S.tolDeploy=Math.max(0,Math.min(100,v)); render();
+});
+el("tolExit").addEventListener("input",function(){
+  var v=parseFloat(this.value); if(!isNum(v)) return;
+  S.tolExit=Math.max(0.01,Math.min(1,v/100)); render();
 });
 
 bindSetting("capIn","capital");
