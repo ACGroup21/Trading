@@ -73,6 +73,39 @@
   .devclear{padding:14px 16px;border-radius:10px;margin:4px 0 16px;font-size:14px;
             background:rgba(12,163,12,0.07);border:1px solid var(--good)}
 
+  /* ---- costs and tax ---- */
+  .fswitch{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14.5px;
+           margin:0 0 14px;cursor:pointer}
+  .fswitch input{width:auto;transform:scale(1.25);margin:0}
+  .fh{font-size:14px;font-weight:650;margin:20px 0 4px;letter-spacing:-0.005em}
+  .fh:first-child{margin-top:0}
+  .fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+         gap:14px;align-items:end;margin-bottom:6px}
+  .fcompare{margin-top:20px;padding:16px 18px;border-radius:10px;background:var(--surface-2);
+            border:1px solid var(--border);border-left:3px solid var(--critical)}
+  .fcompare .fline{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;
+                   padding:7px 0;border-bottom:1px dashed var(--border)}
+  .fcompare .fline:last-child{border-bottom:none}
+  .fcompare .flab{flex:1;min-width:170px;font-size:14px;color:var(--ink-2)}
+  .fcompare .fwas{font-family:var(--font);color:var(--muted);text-decoration:line-through;
+                  white-space:nowrap;font-size:14px}
+  .fcompare .fnow{font-weight:650;color:var(--critical);white-space:nowrap;font-size:16px}
+  .taxrow{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;padding:8px 0;
+          border-bottom:1px dashed var(--border);font-size:14px}
+  .taxrow:last-child{border-bottom:none}
+  .taxrow .ty{font-weight:650;white-space:nowrap;min-width:96px}
+  .taxrow .td{color:var(--ink-2);flex:1;min-width:180px}
+  .taxrow .tv{font-weight:650;white-space:nowrap}
+
+  /* ---- AC Digital badge ---- */
+  .acfoot{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
+          margin-top:30px;padding-top:22px;border-top:1px solid var(--border);
+          color:var(--muted);font-size:12.5px}
+  /* The global svg rule below is width:100%, which would blow the badge up to the
+     column width — it needs its own size back. */
+  .acfoot svg{display:block;flex:none;width:37px;height:22px;color:var(--ink-2)}
+  .acfoot b{color:var(--ink-2);font-weight:650}
+
   /* ---- demo banner ---- */
   .demobar{display:none;align-items:center;gap:12px;flex-wrap:wrap;
            margin-bottom:20px;padding:12px 16px;border-radius:var(--radius);
@@ -312,6 +345,75 @@
       <button class="ghost" id="demoBtn">Show me a worked example</button>
     </div>
   </div>
+
+  <!-- ============ COSTS AND TAX ============ -->
+  <details class="sect" id="secFric">
+    <summary><span class="stitle">Costs and tax</span><span class="ssum" id="sumFric"></span></summary>
+    <div class="sbody">
+      <p class="hint">Applied to what's ahead, never to what you've logged &mdash; a recorded trade is real cash in and out, so its costs are already inside those numbers.</p>
+
+      <label class="fswitch">
+        <input type="checkbox" id="fricOn">
+        <span>Take costs off my projections</span>
+      </label>
+
+      <div id="fricBody" style="display:none">
+        <h4 class="fh">Crossing the spread</h4>
+        <p class="found" style="margin:0 0 10px">With this on, your payoff target is the <b>gross</b> move you go looking for, and the app shows what it leaves you.</p>
+        <div class="fgrid">
+          <div>
+            <label for="fricEntry">Lost at entry (%)<span class="q">Crossing the half-spread going in.</span></label>
+            <input id="fricEntry" class="plain" type="number" step="0.5" min="0" max="95" inputmode="decimal">
+          </div>
+          <div>
+            <label for="fricExit">Lost at exit (%)<span class="q">And again coming out.</span></label>
+            <input id="fricExit" class="plain" type="number" step="0.5" min="0" max="95" inputmode="decimal">
+          </div>
+          <div>
+            <label for="fricFee">Commission each way (&pound;)<span class="q">Flat broker fee, if you pay one.</span></label>
+            <input id="fricFee" class="plain" type="number" step="0.5" min="0" inputmode="decimal">
+          </div>
+        </div>
+
+        <h4 class="fh">Slippage at size</h4>
+        <p class="found" style="margin:0 0 10px">A rule of thumb, not a measurement &mdash; option liquidity isn't linear and this doesn't pretend to know your book.</p>
+        <div class="fgrid">
+          <div>
+            <label for="fricSlipFrom">Starts above a stake of (&pound;)<span class="q">Below this, nothing is added.</span></label>
+            <input id="fricSlipFrom" class="plain" type="number" step="1000" min="0" inputmode="decimal">
+          </div>
+          <div>
+            <label for="fricSlipRate">Adding (%) per &pound;10,000<span class="q">Per side, above the threshold.</span></label>
+            <input id="fricSlipRate" class="plain" type="number" step="0.1" min="0" inputmode="decimal">
+          </div>
+          <div>
+            <label for="fricSlipCap">Capped at (%)<span class="q">Ceiling per side.</span></label>
+            <input id="fricSlipCap" class="plain" type="number" step="0.5" min="0" max="95" inputmode="decimal">
+          </div>
+        </div>
+
+        <h4 class="fh">Tax</h4>
+        <label class="fswitch">
+          <input type="checkbox" id="fricTaxOn">
+          <span>Set tax aside from realised gains</span>
+        </label>
+        <div class="fgrid" id="taxGrid" style="display:none">
+          <div>
+            <label for="fricTaxRate">Your rate (%)<span class="q">Ask your accountant, not this app.</span></label>
+            <input id="fricTaxRate" class="plain" type="number" step="1" min="0" max="100" inputmode="decimal">
+          </div>
+          <div>
+            <label for="fricTaxFree">Tax-free each year (&pound;)<span class="q">2026/27 allowance is &pound;3,000.</span></label>
+            <input id="fricTaxFree" class="plain" type="number" step="100" min="0" inputmode="decimal">
+          </div>
+        </div>
+        <div id="taxOut"></div>
+
+        <div class="fcompare" id="fricCompare"></div>
+        <p class="found" id="fricSmall"></p>
+      </div>
+    </div>
+  </details>
 
   <div class="tiles" id="tiles"></div>
 
@@ -647,6 +749,21 @@
     reaching their target is a very demanding assumption. The odds figure in the Projection is only ever as
     good as the hit rate you feed it.
   </div>
+
+  <!-- AC Digital, the mark every app is built under. Inline rather than a file:
+       this page makes no network requests, and currentColor lets the letterforms
+       follow the theme while the dot keeps the brand blue. -->
+  <footer class="acfoot">
+    <svg viewBox="0 0 142 84" height="22" role="img" aria-label="AC Digital">
+      <g fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M34 10 L10 74"/>
+        <path d="M34 10 L58 74"/>
+        <path d="M123.8 20.6 A32 32 0 1 0 123.8 63.4"/>
+      </g>
+      <circle cx="34" cy="62" r="6.5" fill="#29A9E0"/>
+    </svg>
+    <span>Built by <b>AC Digital</b> &middot; part of AC Group</span>
+  </footer>
 </div>
 
 <div class="tip" id="tip"></div>
@@ -959,6 +1076,12 @@ function factoryDefaults(){
        deciding anything on your behalf out of sight. */
     tolDeploy:2,                /* flag a stake this many points off the plan */
     tolExit:0.8,                /* flag a winner closed below this share of target */
+    /* Execution costs and tax. Off and unset, so every existing save behaves exactly
+       as it did until this is switched on deliberately. With it on, S.proj.mult is
+       the GROSS move you hunt for and goalMult() returns what that nets. */
+    fric:{ on:false, entry:null, exit:null, feePerSide:null,
+           slipFrom:null, slipRate:null, slipCap:null,
+           taxOn:false, taxRate:null, taxFree:null },
     entries:[],                 /* {k:"trade",date,mkt,start,finish|null} | {k:"cash",date,dir,pot,amount} */
     custom:[],                  /* names you typed in yourself */
     proj:{ mode:"mult", start:null, count:10, mult:null, amount:0 },
@@ -1109,7 +1232,12 @@ function projection(){
   var cap=start,banked=c.banked,rows=[];
   for(var i=1;i<=n;i++){
     var stake=cap*S.deploy;
-    var finish=(S.proj.mode==="amount")?stake+(S.proj.amount||0):stake*(S.proj.mult||1);
+    /* Net is resolved per row, not once for the plan: slippage is a function of the
+       stake, so the same gross move buys less as the ladder grows. That degradation
+       down the table is the point of modelling size at all. */
+    var gross=S.proj.mult||1;
+    var finish=(S.proj.mode==="amount")?stake+(S.proj.amount||0)
+                                       :stake*netMult(gross,stake);
     var sp=splitClose(stake,finish);
     var potAfter=cap-stake+finish-sp.bank;
     var row={ n:i, pot:cap, start:stake, finish:finish, mult:stake>0?finish/stake:0,
@@ -1120,16 +1248,109 @@ function projection(){
   }
   return { base:c, start:start, rows:rows };
 }
+/* ================= execution costs and tax =================
+   Frictions apply to what is forecast, never to what is recorded. A logged trade is
+   real cash in and real cash out, so the spread you paid is already inside those two
+   numbers; taking it off again would understate your own record and corrupt the hit
+   rate the plan is judged on. compute() and splitClose() are therefore untouched.
+
+   With frictions on, S.proj.mult is the GROSS move you go looking for and goalMult()
+   returns the net cash multiple it leaves behind. goalMult() is the choke point every
+   forward-looking surface already reads from, including the target stamped onto a
+   trade when it is saved, so hit testing keeps comparing net against net. */
+function fricOn(){ return !!(S.fric&&S.fric.on); }
+
+/* Cost of crossing one side, as a fraction of the position. Slippage is a rule of
+   thumb, not a measurement: nothing above the threshold is linear in reality, and a
+   more elaborate curve here would be false precision. */
+function sideCost(which,stake){
+  var f=S.fric,c=isNum(f[which])?f[which]/100:0;
+  if(isNum(f.slipFrom)&&isNum(f.slipRate)&&isNum(stake)&&stake>f.slipFrom){
+    var extra=(f.slipRate/100)*((stake-f.slipFrom)/10000);
+    if(isNum(f.slipCap)) extra=Math.min(extra,f.slipCap/100);
+    c+=extra;
+  }
+  return Math.max(0,Math.min(0.95,c));
+}
+
+/* A gross move of `gross` on a stake of `stake`, after both crossings and any flat
+   commission, leaves this many times your cash. */
+function netMult(gross,stake){
+  if(!fricOn()||!isNum(gross)) return gross;
+  var ce=sideCost("entry",stake),cx=sideCost("exit",stake);
+  var fee=isNum(S.fric.feePerSide)?S.fric.feePerSide:0;
+  if(!isNum(stake)||stake<=0) return gross*(1-ce)*(1-cx);
+  var out=stake+fee, back=stake*(1-ce)*gross*(1-cx)-fee;
+  return out>0?Math.max(0,back/out):0;
+}
+
+/* The gross move you must find to net a given cash multiple — the inverse. */
+function grossNeeded(net,stake){
+  if(!fricOn()||!isNum(net)) return net;
+  var ce=sideCost("entry",stake),cx=sideCost("exit",stake);
+  var fee=isNum(S.fric.feePerSide)?S.fric.feePerSide:0;
+  var d=(1-ce)*(1-cx);
+  if(!(d>0)) return null;
+  if(!isNum(stake)||stake<=0) return net/d;
+  return (net*(stake+fee)+fee)/(stake*d);
+}
+
+/* The £ stake the plan implies right now, used to size slippage. */
+function planStake(c){
+  var cap=(c&&isNum(c.capital))?c.capital:0;
+  return isNum(S.deploy)?cap*S.deploy:0;
+}
+
+/* UK tax years run 6 April to 5 April; a date in January belongs to the year that
+   started the previous April. */
+function ukTaxYear(iso){
+  var p=String(iso).split("-");
+  if(p.length!==3) return null;
+  var y=+p[0],mo=+p[1],d=+p[2];
+  if(!isNum(y)||!isNum(mo)||!isNum(d)) return null;
+  return (mo>4||(mo===4&&d>=6))?y:y-1;
+}
+
+/* Gains are realised at every rung, so this recurs the whole way up rather than
+   landing once at the end. Losses net off gains inside the same tax year; carrying
+   them forward between years is deliberately not modelled, and the interface says so.
+   The rate is whatever you supply — the app does arithmetic, it does not know your
+   band and cannot know whether HMRC would treat this as capital gains at all. */
+function taxLedger(c){
+  var f=S.fric;
+  if(!f||!f.taxOn||!isNum(f.taxRate)) return null;
+  var rate=f.taxRate/100,free=isNum(f.taxFree)?f.taxFree:0;
+  var byYear={},i,t,ty;
+  for(i=0;i<c.trades.length;i++){
+    t=c.trades[i]; ty=ukTaxYear(t.date);
+    if(ty===null) continue;
+    byYear[ty]=(byYear[ty]||0)+t.profit;
+  }
+  var rows=[],total=0,k;
+  for(k in byYear) if(byYear.hasOwnProperty(k)){
+    var gain=byYear[k],taxable=Math.max(0,gain-free),due=taxable*rate;
+    rows.push({year:+k,gain:gain,taxable:taxable,due:due});
+    total+=due;
+  }
+  rows.sort(function(a,b){return a.year-b.year;});
+  return {rows:rows,total:total,rate:rate,free:free};
+}
+
 function goalMult(){
-  if(S.proj.mode!=="amount") return S.proj.mult||1;
+  /* In "amount" mode the target is a flat cash profit, which is already net of
+     everything — you either keep that money or you do not. Only a multiple needs
+     converting. */
+  if(S.proj.mode!=="amount") return netMult(S.proj.mult||1,planStake(compute()));
   var cap=(isFinite(S.proj.start)&&S.proj.start!==null)?S.proj.start:compute().capital;
   var stake=cap*S.deploy;
   return stake>0?(stake+(S.proj.amount||0))/stake:1;
 }
 function goalPath(moves){
-  var pts=[{n:0,equity:S.capital}],cap=S.capital,banked=0,g=goalMult(),i;
+  var pts=[{n:0,equity:S.capital}],cap=S.capital,banked=0,i;
   for(i=1;i<=moves;i++){
-    var stake=cap*S.deploy,f=stake*g,sp=splitClose(stake,f);
+    var stake=cap*S.deploy;
+    var g=(S.proj.mode==="amount")?goalMult():netMult(S.proj.mult||1,stake);
+    var f=stake*g,sp=splitClose(stake,f);
     banked+=sp.bank; cap=cap-stake+f-sp.bank; pts.push({n:i,equity:cap+banked});
   }
   return pts;
@@ -1214,7 +1435,10 @@ function ladderOdds(target,hit,trials,maxTrades){
       if(pot<1e-6) break;
       var stake=pot*f;
       if(rnd()<hit){
-        var close=stake*m,sp=splitClose(stake,close,k);
+        /* Same per-stake netting as the projection, so the odds degrade with size
+           for the same reason the table does. */
+        var mNet=(S.proj.mode==="amount")?m:netMult(S.proj.mult||1,stake);
+        var close=stake*mNet,sp=splitClose(stake,close,k);
         pot=pot-stake+close-sp.bank; safe+=sp.bank;
       } else pot-=stake;
       if(pot+safe>=target){ won++; break; }
@@ -1272,6 +1496,7 @@ function render(){
   renderEntries(c);
   renderRecord(c,st,avg);
   renderByMarket(c);
+  renderFrictions(c);
   renderDeviations(c);
 
   var si=el("startIn");
@@ -1413,6 +1638,96 @@ function deviations(c){
     }
   }
   return out;
+}
+
+/* How many clean wins carry `cap` to the goal at a given per-win pot growth.
+   Shared by the with/without comparison so both halves are counted the same way. */
+function rungsToGoal(cap,goal,f,grossM,useFric){
+  if(!(goal>0)||!(cap>0)||!isNum(f)||!isNum(grossM)) return null;
+  var pot=cap,safe=0,n=0;
+  while(pot+safe<goal&&n<500){
+    var stake=pot*f;
+    var m=useFric?netMult(grossM,stake):grossM;
+    var close=stake*m,sp=splitClose(stake,close,S.split);
+    var after=pot-stake+close-sp.bank;
+    if(after<=pot+1e-9&&sp.bank<=1e-9) return null;   /* not going anywhere */
+    pot=after; safe+=sp.bank; n++;
+  }
+  return n<500?n:null;
+}
+
+function renderFrictions(c){
+  var f=S.fric,on=!!(f&&f.on);
+  el("fricOn").checked=on;
+  el("fricBody").style.display=on?"":"none";
+  el("fricTaxOn").checked=!!(f&&f.taxOn);
+  el("taxGrid").style.display=(f&&f.taxOn)?"":"none";
+
+  planField("fricEntry",f.entry);
+  planField("fricExit",f.exit);
+  planField("fricFee",f.feePerSide);
+  planField("fricSlipFrom",f.slipFrom);
+  planField("fricSlipRate",f.slipRate);
+  planField("fricSlipCap",f.slipCap);
+  planField("fricTaxRate",f.taxRate);
+  planField("fricTaxFree",f.taxFree);
+
+  /* Tax, shown as money set aside from the safe haven rather than taken from the pot.
+     Raiding the pot would change the rung count without ever saying so. */
+  var tl=taxLedger(c),th="";
+  if(tl){
+    if(!tl.rows.length){
+      th='<p class="hint" style="margin:10px 0 0">No closed trades yet, so nothing realised to tax.</p>';
+    } else {
+      var i;
+      for(i=0;i<tl.rows.length;i++){
+        var r=tl.rows[i];
+        th+='<div class="taxrow"><span class="ty">'+r.year+'/'+String(r.year+1).slice(2)+'</span>'
+          +'<span class="td">'+(r.gain>=0?"gains ":"losses ")+gbp(Math.abs(r.gain))
+          +(r.gain<=0 ? ", nothing to pay"
+            : (r.taxable>0 ? (", "+gbp(r.taxable)+" of it above the allowance")
+                           : (", under the "+gbp(tl.free)+" allowance")))
+          +'</span><span class="tv">'+gbp(r.due)+'</span></div>';
+      }
+      th+='<div class="taxrow"><span class="ty">Set aside</span>'
+        +'<span class="td">safe haven is '+gbp(c.banked)+', leaving <b>'+gbp(c.banked-tl.total)+'</b> after tax</span>'
+        +'<span class="tv" style="color:var(--critical)">'+gbp(tl.total)+'</span></div>';
+      th+='<p class="found" style="margin:10px 0 0">Losses net off gains inside a tax year. Carrying them forward between years isn\'t modelled, and neither is any treatment other than the rate you typed.</p>';
+    }
+  }
+  el("taxOut").innerHTML=th;
+
+  /* The payoff of the whole feature: what the costs actually do to the plan. */
+  var cmp="",small="";
+  if(on&&S.planSet&&planComplete()&&S.proj.mode!=="amount"){
+    var gross=S.proj.mult,stake=planStake(c),net=netMult(gross,stake);
+    var gOff=rungGrowth(S.deploy,gross,S.split);
+    var gOn=rungGrowth(S.deploy,net,S.split);
+    /* Counted from the plan's starting capital, not today's pot, so this line and the
+       plan band's own sentence are always quoting the same ladder. */
+    var rOff=rungsToGoal(S.capital,S.goal,S.deploy,gross,false);
+    var rOn=rungsToGoal(S.capital,S.goal,S.deploy,gross,true);
+    var needed=grossNeeded(gross,stake);
+    cmp='<div class="fline"><span class="flab">Your <b>'+xm(gross)+'</b> gross target nets</span>'
+       +'<span class="fwas">'+xm(gross)+'</span><span class="fnow">'+xm(net)+'</span></div>'
+       +'<div class="fline"><span class="flab">Pot growth per win</span>'
+       +'<span class="fwas">'+gOff.toFixed(2)+'&times;</span><span class="fnow">'+gOn.toFixed(2)+'&times;</span></div>';
+    if(rOff&&rOn) cmp+='<div class="fline"><span class="flab">Clean wins to '+gbp(S.goal)+'</span>'
+       +'<span class="fwas">'+rOff+'</span><span class="fnow">'+rOn+'</span></div>';
+    else if(rOff&&!rOn) cmp+='<div class="fline"><span class="flab">Clean wins to '+gbp(S.goal)+'</span>'
+       +'<span class="fwas">'+rOff+'</span><span class="fnow">never gets there</span></div>';
+    small="To actually net "+xm(gross)+" you would need a gross move of <b>"
+      +(isNum(needed)?xm(needed):"—")+"</b>. Same plan, described accurately — nothing about it got worse.";
+    set("sumFric",xm(gross)+" nets "+xm(net));
+  } else if(on){
+    cmp='<div class="fline"><span class="flab">Set your plan and these costs to see what they do to it.</span></div>';
+    set("sumFric","on");
+  } else {
+    set("sumFric","off");
+  }
+  el("fricCompare").innerHTML=cmp;
+  el("fricCompare").style.display=cmp?"":"none";
+  el("fricSmall").innerHTML=small;
 }
 
 function renderDeviations(c){
@@ -2086,17 +2401,16 @@ function planComplete(){
 
 /* What the plan implies, from the plan's own numbers rather than the form's. */
 function planImplication(){
-  var f=S.deploy,m=S.proj.mult,k=S.split,g=rungGrowth(f,m,k),rungs=0;
-  if(S.goal>0&&g>1){
-    var pot=S.capital,safe=0;
-    while(pot+safe<S.goal&&rungs<500){
-      var st=pot*f,cl=st*m,sp=splitClose(st,cl,k);
-      pot=pot-st+cl-sp.bank; safe+=sp.bank; rungs++;
-    }
-  }
-  return "Staking <b>"+Math.round(f*100)+"%</b> at "+xm(m)+" and banking <b>"
-    +Math.round(k*100)+"%</b> grows the pot <b>"+g.toFixed(2)+"&times;</b> a win"
-    +(rungs&&rungs<500 ? (", so <b>"+rungs+"</b> clean win"+(rungs===1?"":"s")
+  var f=S.deploy,m=S.proj.mult,k=S.split;
+  /* The target you set is the gross move; the pot only ever grows by what is left
+     after costs, so growth and rung count are both taken from the net figure. */
+  var mNet=netMult(m,S.capital*f);
+  var g=rungGrowth(f,mNet,k);
+  var rungs=rungsToGoal(S.capital,S.goal,f,m,fricOn());
+  return "Staking <b>"+Math.round(f*100)+"%</b> at "+xm(m)
+    +(fricOn()&&mNet<m-1e-9?(" gross &mdash; <b>"+xm(mNet)+"</b> after costs &mdash;"):"")
+    +" and banking <b>"+Math.round(k*100)+"%</b> grows the pot <b>"+g.toFixed(2)+"&times;</b> a win"
+    +(rungs ? (", so <b>"+rungs+"</b> clean win"+(rungs===1?"":"s")
         +" carries "+gbp(S.capital)+" to "+gbp(S.goal)+".") : ".")
     +" A losing trade costs "+Math.round(f*100)+"% of the pot"
     +(f>=0.999?" — the whole thing, which ends the ladder."
@@ -2181,6 +2495,13 @@ function adopt(o){
   if(typeof o.protect==="boolean") S.protect=o.protect;
   if(isNum(o.tolDeploy)) S.tolDeploy=Math.max(0,Math.min(100,o.tolDeploy));
   if(isNum(o.tolExit)) S.tolExit=Math.max(0.01,Math.min(1,o.tolExit));
+  if(o.fric&&typeof o.fric==="object"){
+    var fk=["entry","exit","feePerSide","slipFrom","slipRate","slipCap","taxRate","taxFree"];
+    for(var fi=0;fi<fk.length;fi++)
+      if(isNum(o.fric[fk[fi]])) S.fric[fk[fi]]=o.fric[fk[fi]];
+    S.fric.on=(o.fric.on===true);
+    S.fric.taxOn=(o.fric.taxOn===true);
+  }
 
   /* No plan flag and no entries means the file predates the plan band and holds
      nothing but the defaults that build shipped with — 2500 / 50% / 5.00x / 33% / 1m.
@@ -2394,6 +2715,26 @@ el("planSave").addEventListener("click",function(){
 el("planEdit").addEventListener("click",function(){
   S.planSet=false; render(); el("planCap").focus();
 });
+
+/* Costs and tax. Every field writes into S.fric and re-renders; nothing here changes
+   a logged trade, only what is projected from here on. */
+function bindFric(id,key,xf){
+  el(id).addEventListener("input",function(){
+    var v=parseFloat(this.value);
+    S.fric[key]=isNum(v)?(xf?xf(v):v):null;
+    render();
+  });
+}
+bindFric("fricEntry","entry",function(v){return Math.max(0,Math.min(95,v));});
+bindFric("fricExit","exit",function(v){return Math.max(0,Math.min(95,v));});
+bindFric("fricFee","feePerSide",function(v){return Math.max(0,v);});
+bindFric("fricSlipFrom","slipFrom",function(v){return Math.max(0,v);});
+bindFric("fricSlipRate","slipRate",function(v){return Math.max(0,v);});
+bindFric("fricSlipCap","slipCap",function(v){return Math.max(0,Math.min(95,v));});
+bindFric("fricTaxRate","taxRate",function(v){return Math.max(0,Math.min(100,v));});
+bindFric("fricTaxFree","taxFree",function(v){return Math.max(0,v);});
+el("fricOn").addEventListener("change",function(){ S.fric.on=this.checked; render(); });
+el("fricTaxOn").addEventListener("change",function(){ S.fric.taxOn=this.checked; render(); });
 
 /* Review tolerances. Editable where they are used, so the thresholds a flag depends
    on are never a number you have to take on trust. */
