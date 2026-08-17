@@ -1422,6 +1422,23 @@ function neededFor(target,basis){
 /* A "hit" is reaching the multiple you were aiming for. A trade that returns
    1.5x when the rung needed 5x made money but missed — and the ladder cares
    about the miss, not the profit. */
+/* Wilson score interval on the realised hit rate.
+   Everything downstream — the projection, the rung count, the odds — rests on one
+   number measured from a handful of trades, and the app was reporting it as though
+   it were known. Ten trades at seven hits is not "70%", it is somewhere around
+   40–89%, and the difference between those ends is the difference between a plan
+   that completes and one that stalls. Wilson rather than the normal approximation
+   because the latter falls apart at small n and near 0 or 1, which is exactly
+   where a ten-trade sample lives. */
+function wilson(hits,n,z){
+  if(!n) return null;
+  z=z||1.96;                                  /* 95% */
+  var p=hits/n, z2=z*z, d=1+z2/n;
+  var centre=(p+z2/(2*n))/d;
+  var half=(z/d)*Math.sqrt(p*(1-p)/n + z2/(4*n*n));
+  return { p:p, n:n, lo:Math.max(0,centre-half), hi:Math.min(1,centre+half) };
+}
+
 function hitStats(trades){
   var n=0,hits=0,i;
   for(i=0;i<trades.length;i++){
@@ -1853,7 +1870,11 @@ function renderRecord(c,st,avg){
   var hs=hitStats(c.trades);
   el("record").innerHTML=
     mini("Hit rate vs target", hs.n?(Math.round(hs.rate*100)+"%"):"—",
-         hs.n?(hs.hits+" of "+hs.n+" reached the goal"):"log a trade with a goal set")+
+         hs.n?(function(){
+           var ci=wilson(hs.hits,hs.n);
+           return hs.hits+" of "+hs.n+" &middot; could be "
+                  +Math.round(ci.lo*100)+"&ndash;"+Math.round(ci.hi*100)+"%";
+         }()):"log a trade with a goal set")+
     mini("Win rate", n?Math.round(wins/n*100)+"%":"—", wins+" up, "+losses+" down")+
     mini("Average multiplier", n?xm(avg):"—", "goal is "+xm(goalMult()))+
     mini("Best winning run", n?String(st.bestWin):"—", "trades in a row")+
@@ -1925,7 +1946,38 @@ function renderOdds(c){
     +(h.n?("Your hit rate is measured over "+h.n+" trade"+(h.n===1?"":"s")+" with a goal set; "
            +h.hits+" reached it.")
          :"No trades with a goal logged yet, so 70% is an assumption, not a finding.")
-    +" A miss is assumed to lose the whole stake.</div>";
+    +" A miss is assumed to lose the whole stake.</div>"
+    +oddsBand(c,h,hit,goal,pct);
+}
+
+/* The headline probability is quoted off a hit rate measured from a handful of
+   trades. This says how much that measurement can actually bear — the same odds
+   recomputed at both ends of the interval. Only shown when the rate is measured:
+   an override is an assumption, and assumptions have no error bar. */
+function oddsBand(c,h,hit,goal,pct){
+  if(!h.n||S.hitOverride!==null) return "";
+  var ci=wilson(h.hits,h.n);
+  if(!ci) return "";
+  var loP=ladderOdds(goal,ci.lo,1500), hiP=ladderOdds(goal,ci.hi,1500);
+  if(loP===null||hiP===null) return "";
+  /* The headline may be quoting an assumed rate while the interval is measured from
+     the real trades — say which is which rather than letting the two numbers blur. */
+  var assumed=Math.abs(hit-ci.p)>1e-9;
+  return "<div style='margin-top:9px;padding-top:9px;border-top:1px dashed var(--border);"
+    +"color:var(--ink-2);font-size:13px'><b>What your "+h.n+" logged trade"
+    +(h.n===1?"":"s")+" actually support.</b> "+h.hits+" hit"+(h.hits===1?"":"s")
+    +" from "+h.n+" is <b>"+Math.round(ci.p*100)+"%</b>, and a sample that size is "
+    +"consistent with a true rate anywhere between <b>"+Math.round(ci.lo*100)
+    +"%</b> and <b>"+Math.round(ci.hi*100)+"%</b> — which puts the chance of reaching "
+    +"your goal somewhere between <b>"+pct(loP)+"</b> and <b>"+pct(hiP)+"</b>."
+    +(assumed
+      ? " The headline above is not using that: it is running on an assumed <b>"
+        +Math.round(hit*100)+"%</b> until you have five trades with a target set."
+      : "")
+    +(h.n<10
+      ? " At this many trades it is barely a measurement; the range tightens with every one you log."
+      : " Judge the plan on the low end, not the headline.")
+    +"</div>";
 }
 
 function renderHitSel(c){
