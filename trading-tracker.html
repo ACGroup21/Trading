@@ -757,8 +757,11 @@
     banking more locks away more. Both are saved with each trade, so changing them later never rewrites
     your history.
     <br><br>
-    <b>Where your data lives.</b> Save this file to your computer and open it from there — your entries stay in
-    the page. Use <b>Download my data</b> now and then for a proper backup. Nothing is ever sent anywhere.
+    <b>Where your data lives.</b> In this browser, on this machine. Nothing is ever sent anywhere &mdash; there is no
+    account and no server. Storage belongs to the <i>site</i>, not to a file, so every page here shares one set of
+    entries and keeps them between visits. A copy opened from your own disk is a separate island with its own
+    empty tracker, which is worth knowing before you save one. Use <b>Download my data</b> for a backup or to move
+    between machines, and <b>Save this as&hellip;</b> to keep more than one plan side by side.
     <br><br>
     This is a calculator, not financial advice — I'm not a financial adviser. It works out the arithmetic of the
     plan you gave it; whether the plan is achievable is a separate question, and a long run of trades all
@@ -1629,7 +1632,12 @@ function deviations(c){
   var out={drift:[],early:[],topups:[],rungsLost:0,g:null,priced:false,ready:false};
   if(!S.planSet||!planComplete()) return out;
   out.ready=true;
-  var f=S.deploy,m=S.proj.mult,g=rungGrowth(f,m,S.split);
+  /* goalMult(), not S.proj.mult. A trade's realised multiple and pot growth come from
+     logged cash, so they are already net of what the trade cost. Measuring them
+     against the gross move would flag trades that actually met the achievable target,
+     and would price rungs lost against a rung nobody could have reached. With costs
+     off goalMult() returns the gross figure, so this is unchanged in that case. */
+  var f=S.deploy,m=goalMult(),g=rungGrowth(f,m,S.split);
   out.g=g; out.priced=(g>1);
   var tolD=isNum(S.tolDeploy)?S.tolDeploy:2;
   var tolX=isNum(S.tolExit)?S.tolExit:0.8;
@@ -1761,7 +1769,7 @@ function renderDeviations(c){
 
   el("tolNote").innerHTML="On your plan that means a stake outside <b>"
     +fmtPct(S.deploy*100-S.tolDeploy)+"</b> to <b>"+fmtPct(S.deploy*100+S.tolDeploy)
-    +"</b>, or a winner closed below <b>"+xm(S.proj.mult*tolX)+"</b>.";
+    +"</b>, or a winner closed below <b>"+xm(goalMult()*tolX)+"</b>.";
 
   var n=d.drift.length+d.early.length+d.topups.length;
   el("devStats").innerHTML=
@@ -1770,7 +1778,7 @@ function renderDeviations(c){
     mini("Stakes off plan", String(d.drift.length),
          "more than "+fmtNum(S.tolDeploy)+" point"+(S.tolDeploy===1?"":"s")+" from plan")+
     mini("Winners closed early", String(d.early.length),
-         "below "+xm(S.proj.mult*tolX))+
+         "below "+xm(goalMult()*tolX))+
     mini("Top-ups to the pot", String(d.topups.length),
          d.topups.length?"the model assumes none":"none, as the plan asks");
 
@@ -1801,7 +1809,7 @@ function renderDeviations(c){
   for(i=0;i<d.early.length;i++){
     var e=d.early[i];
     h+='<div class="flag cost"><span class="who">Trade '+e.r.n+'</span>'
-      +'<span class="what">closed at <b>'+xm(e.r.mult)+'</b> on a '+xm(S.proj.mult)
+      +'<span class="what">closed at <b>'+xm(e.r.mult)+'</b> on a '+xm(goalMult())
       +' target'+(e.r.mkt?(" &middot; "+esc(e.r.mkt)):"")+" &middot; "+fmtDate(e.r.date)
       +'</span><span class="cost-x">'+(d.priced?("&minus;"+e.lost.toFixed(2)+" rungs"):"early exit")+'</span></div>';
   }

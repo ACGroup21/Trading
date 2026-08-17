@@ -135,6 +135,35 @@ starting values (2 points, 80% of target), because they are editable in the sect
 that uses them and the app states what they mean against the current plan. That is the
 distinction: a default is acceptable when it is on screen next to its effect.
 
+**Costs apply forward, never backward.** `S.fric` models the spread, slippage at size,
+flat commission and tax. It is off and unset until switched on. A logged trade is real
+cash in and real cash out, so the spread paid is already inside `start` and `finish` —
+subtracting it again would understate the owner's own record and corrupt the hit rate
+the whole plan is judged on. **`compute()` and `splitClose()` must stay untouched by
+this.**
+
+With frictions on, `S.proj.mult` is the **gross** move being hunted and `goalMult()`
+returns what it nets. That works because `goalMult()` was already the single choke
+point every forward surface reads from — including the target stamped onto a trade in
+`saveTrade()`, so hit testing keeps comparing net against net without special-casing.
+Net is resolved **per stake**, not once per plan: `projection()`, `goalPath()` and
+`ladderOdds()` each call `netMult(gross, stake)` with their own row's stake, so the same
+gross move buys less as the ladder grows. That degradation is the reason to model size
+at all — don't collapse it back to a single plan-level figure.
+
+Tax is a **liability, never a deduction**. `taxLedger()` buckets realised gains by UK
+tax year (6 April), nets losses within a year, applies the allowance, and the result is
+shown as money set aside from the safe haven. Taking it out of the pot instead would
+change the rung count without saying so. Carry-forward between years is not modelled and
+the interface says so. The rate comes from the user: the app cannot know their band, or
+whether HMRC would treat this as capital gains at all rather than trading income.
+
+**Saved plans live outside `S`.** `SAVES_KEY` (`tradingTracker.saves.v1`) holds a named
+set. Deliberately its own key, because "Reset everything" replaces `S` wholesale and a
+reset that also swallowed every saved plan would be a trap rather than a reset. Opening
+one floors `S` to `factoryDefaults()` before `adopt()`, so nothing the save omits
+survives from what was on screen.
+
 ## Gotchas
 
 **`isFinite(null)` is `true`.** `null` coerces to `0`, so a plain `isFinite()` check
