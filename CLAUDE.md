@@ -199,6 +199,18 @@ touch `renderNeeds()` or `neededFor()`, check the arithmetic closes: for an equi
 target, `cap - stake + finish + banked` must come back to the target, and the displayed
 multiple must equal `finish / stake` for the stake named above it.
 
+**Help lives in one table, not thirteen places.** `HELP` maps a section id to its
+explainer, and `initHelp()` injects the `?` buttons at boot — to document a new section,
+add a key. `guideHTML()` is the full guide behind the header button. Two traps, both hit
+on the first pass:
+
+- The `?` sits inside `<summary>` on most sections, so its handler **must**
+  `preventDefault()` and `stopPropagation()` or opening the explainer also toggles the
+  section.
+- **Never inject into an element whose `textContent` gets rewritten.** `renderPlan()`
+  rewrites the plan heading every render, which silently deleted the button — hence
+  `<h2><span id="planH">`. Anything else that gains a `?` needs the same check.
+
 ## Gotchas
 
 **`isFinite(null)` is `true`.** `null` coerces to `0`, so a plain `isFinite()` check
