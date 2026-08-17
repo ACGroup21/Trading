@@ -221,15 +221,25 @@
 
   /* ---- tables ---- */
   .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  table{border-collapse:collapse;width:100%;min-width:900px;font-size:13.5px;font-variant-numeric:tabular-nums}
+  /* Ledger, not grid. A rule under every row plus every figure at identical weight
+     gave a wall of digits with nothing leading, so the rules come out, faint banding
+     separates rows instead, and weight does the work: the market and the multiplier
+     are the columns you look for, the derived ones step back. */
+  table{border-collapse:collapse;width:100%;min-width:860px;font-size:13.5px;font-variant-numeric:tabular-nums}
   table.narrow{min-width:0}
-  th{text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-2);
-     font-weight:600;padding:8px;border-bottom:1.5px solid var(--axis);white-space:nowrap}
+  th{text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:0.09em;color:var(--muted);
+     font-weight:500;padding:0 10px 9px;border-bottom:1px solid var(--axis);white-space:nowrap}
   th:first-child,td:first-child{text-align:left}
-  td{text-align:right;padding:9px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
-  tbody tr:hover{background:var(--surface-2)}
-  tr.cashrow td{background:rgba(42,120,214,0.06)}
-  tr.openrow td{background:rgba(250,178,25,0.08)}
+  td{text-align:right;padding:8px 10px;white-space:nowrap;border:none;color:var(--ink-2)}
+  tbody tr:nth-child(odd) td{background:rgba(128,128,128,0.038)}
+  tbody tr:hover td{background:var(--series-1-soft)}
+  td b,td .pill{color:var(--ink)}
+  /* grouped header: the projection's columns are three stages of one sum */
+  tr.grp th{font-size:9.5px;letter-spacing:0.13em;color:var(--muted);font-weight:500;
+            padding:0 10px 5px;text-align:center;border:none}
+  tr.grp th.b,thead tr th.b,tbody tr td.b{border-left:1px solid var(--grid)}
+  tr.cashrow td{background:rgba(42,120,214,0.09)}
+  tr.openrow td{background:rgba(250,178,25,0.10)}
   .empty{text-align:center;color:var(--muted);padding:32px 12px;font-size:14px}
   .del{background:none;border:none;color:var(--muted);font-size:18px;padding:2px 8px;line-height:1;border-radius:6px}
   .del:hover{color:var(--critical);background:rgba(208,59,59,0.10)}
@@ -642,10 +652,18 @@
 
     <div class="scroll">
       <table id="ptbl">
-        <thead><tr>
-          <th>Trade</th><th>Pot</th><th>Stake</th><th>Finish with</th><th>Mult needed</th>
-          <th>Banked</th><th>Pot after</th><th>Safe haven</th><th>Total money</th><th>Milestone</th>
-        </tr></thead>
+        <thead>
+          <tr class="grp">
+            <th colspan="3">What goes in</th>
+            <th colspan="2" class="b">What it has to do</th>
+            <th colspan="5" class="b">Where that leaves you</th>
+          </tr>
+          <tr>
+            <th>Trade</th><th>Pot</th><th>Stake</th>
+            <th class="b">Finish with</th><th>Mult needed</th>
+            <th class="b">Banked</th><th>Pot after</th><th>Safe haven</th><th>Total money</th><th>Milestone</th>
+          </tr>
+        </thead>
         <tbody id="pbody"></tbody>
       </table>
     </div>
@@ -2032,8 +2050,8 @@ function renderProjection(){
     var r=pr.rows[i],on=targetIdx(mVal(r))>=0;
     h+='<tr class="'+(on?"targeted":"")+'"><td>+'+r.n+'</td><td>'+gbp(r.pot,2)+'</td>'
       +'<td>'+gbp(r.start,2)+'</td>'
-      +'<td><b>'+gbp(r.finish,2)+'</b></td><td><span class="pill mid">'+xm(r.mult)+'</span></td>'
-      +'<td>'+gbp(r.bank,2)+'</td><td>'+gbp(r.roll,2)+'</td><td>'+gbp(r.banked,2)+'</td>'
+      +'<td class="b"><b>'+gbp(r.finish,2)+'</b></td><td><span class="pill mid">'+xm(r.mult)+'</span></td>'
+      +'<td class="b">'+gbp(r.bank,2)+'</td><td>'+gbp(r.roll,2)+'</td><td>'+gbp(r.banked,2)+'</td>'
       +'<td><b>'+gbp(r.equity,2)+'</b></td>'
       +'<td style="text-align:center"><button class="star '+(on?"on":"")+'" data-v="'+mVal(r)+'" title="'
       +(on?"Remove this milestone":"Make this a milestone")+'">'+(on?"★":"☆")+'</button></td></tr>';
