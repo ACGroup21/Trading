@@ -183,6 +183,22 @@ in `VIEWS`. Tiles sit above the switcher because the summary is true in every vi
 a panel that has been `display:none` draws nothing until it is on screen — the same trap
 the `<details>` toggles handle.
 
+**Entries is six columns with the rest one tap away.** `renderEntries()` emits a
+`tr.main` followed by a hidden `tr.det` for every entry, across all three row types
+(closed, cash, open). `toggleEntryRow()` opens the detail, and it ignores clicks whose
+target is an `input`, `button`, `a` or `select` — without that, tapping the close-trade
+box would toggle the row instead of focusing the field. **Keep `data-i`, `data-close`
+and `data-doclose` on their elements wherever they move to:** every handler binds by
+attribute, not by position, which is the only reason this restructure was safe.
+
+**Anything claiming an assumption must name the number it actually used.** "What the
+next trade needs" said "assuming you stake the [whole pot] you have free" while
+`neededFor()` sized the trade at `cap * S.deploy`, so the multiplier on screen was
+computed against half the money the sentence named and the two never reconciled. If you
+touch `renderNeeds()` or `neededFor()`, check the arithmetic closes: for an equity
+target, `cap - stake + finish + banked` must come back to the target, and the displayed
+multiple must equal `finish / stake` for the stake named above it.
+
 ## Gotchas
 
 **`isFinite(null)` is `true`.** `null` coerces to `0`, so a plain `isFinite()` check
