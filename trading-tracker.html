@@ -73,6 +73,20 @@
   .devclear{padding:14px 16px;border-radius:10px;margin:4px 0 16px;font-size:14px;
             background:rgba(12,163,12,0.07);border:1px solid var(--good)}
 
+  /* ---- three views ----
+     Set-up, logging and review are used once, weekly and monthly, and they had all
+     been interleaved down a six-screen scroll. Same blocks, moved into three panels. */
+  .views{display:flex;gap:5px;margin:0 0 20px;padding:5px;border-radius:12px;
+         background:var(--surface-2);border:1px solid var(--border)}
+  .viewbtn{flex:1;padding:11px 12px;font-size:14.5px;font-weight:600;
+           border:1px solid transparent;border-radius:8px;background:transparent;
+           color:var(--ink-2);cursor:pointer;font-family:var(--font)}
+  .viewbtn:hover:not(.on){background:var(--surface);color:var(--ink)}
+  .viewbtn.on{background:var(--series-1);border-color:var(--series-1);color:#fff}
+  .viewbtn .dot{display:inline-block;width:6px;height:6px;border-radius:50%;
+                background:var(--warn);margin-left:7px;vertical-align:middle}
+  .view > .sect:first-child,.view > .card:first-child{margin-top:0}
+
   /* ---- costs and tax ---- */
   .fswitch{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14.5px;
            margin:0 0 14px;cursor:pointer}
@@ -1533,6 +1547,7 @@ function render(){
   renderByMarket(c);
   renderFrictions(c);
   renderDeviations(c);
+  markViewNav();
 
   var si=el("startIn");
   if(document.activeElement!==si)
@@ -2786,6 +2801,8 @@ bindPlan("planGoal",function(v){ S.goal=Math.max(0,v); });
 el("planSave").addEventListener("click",function(){
   if(!planComplete()) return;
   S.planSet=true; render();
+  /* The plan is the gate to logging, so saving it should put you where you can log. */
+  showView("log");
 });
 el("planEdit").addEventListener("click",function(){
   S.planSet=false; render(); el("planCap").focus();
@@ -2999,6 +3016,8 @@ function loadState(next){
   el("mktSearch").value=""; el("finishIn").value=""; el("multIn").value="";
   el("dateIn").value=todayISO();
   syncSettings(); renderCats(); renderPicker(""); render();
+  /* A reset leaves no plan, so send the page back to where one gets made. */
+  if(typeof showView==="function") showView(S.planSet?(activeView||"log"):"setup");
   window.scrollTo(0,0);
 }
 
@@ -3065,7 +3084,84 @@ window.addEventListener("resize",function(){
   rzTimer=setTimeout(function(){ var c=compute(); drawEquity(c); drawMult(c); },150);
 });
 
+/* ================= three views =================
+   Set-up, logging and review are three jobs done at completely different rates —
+   once, weekly, monthly — and they had all been interleaved down a six-screen
+   scroll. Nothing here changes a block: they are moved, at boot, into three panels.
+   The tiles stay above the switcher because the summary is true in every view. */
+var VIEWS=[
+  {id:"setup", label:"Plan",   blocks:["planCard","secFric","secSettings"]},
+  {id:"log",   label:"Log",    blocks:["logCard","secNeeds"]},
+  {id:"review",label:"Review", blocks:["rowCharts","secProj","secMs","rowRecord","secDev","secEntries"]}
+];
+var activeView="log";
+
+function buildViews(){
+  var wrap=document.querySelector(".wrap");
+  if(!wrap) return;
+  /* grab the two always-on trailing blocks before anything moves */
+  var kids=wrap.children,i,note=null,foot=null;
+  for(i=0;i<kids.length;i++){
+    if(kids[i].className&&kids[i].className.indexOf("note")>=0&&kids[i].id!=="planNote") note=kids[i];
+    if(kids[i].className&&kids[i].className.indexOf("acfoot")>=0) foot=kids[i];
+  }
+  var nav=document.createElement("nav");
+  nav.className="views"; nav.id="viewNav";
+  for(i=0;i<VIEWS.length;i++){
+    var b=document.createElement("button");
+    b.type="button"; b.className="viewbtn";
+    b.setAttribute("data-view",VIEWS[i].id);
+    b.textContent=VIEWS[i].label;
+    nav.appendChild(b);
+  }
+  wrap.appendChild(el("tiles"));
+  wrap.appendChild(nav);
+  for(i=0;i<VIEWS.length;i++){
+    var p=document.createElement("div");
+    p.className="view"; p.id="view-"+VIEWS[i].id;
+    for(var j=0;j<VIEWS[i].blocks.length;j++){
+      var n=el(VIEWS[i].blocks[j]);
+      if(n) p.appendChild(n);
+    }
+    wrap.appendChild(p);
+  }
+  if(note) wrap.appendChild(note);
+  if(foot) wrap.appendChild(foot);
+  nav.addEventListener("click",function(ev){
+    var t=ev.target.closest?ev.target.closest("[data-view]"):null;
+    if(t) showView(t.getAttribute("data-view"));
+  });
+}
+
+function showView(id){
+  activeView=id;
+  var i,p,bs;
+  for(i=0;i<VIEWS.length;i++){
+    p=el("view-"+VIEWS[i].id);
+    if(p) p.style.display=(VIEWS[i].id===id)?"":"none";
+  }
+  bs=document.querySelectorAll("#viewNav [data-view]");
+  for(i=0;i<bs.length;i++)
+    bs[i].classList.toggle("on",bs[i].getAttribute("data-view")===id);
+  /* Charts bail out when their box has zero width, so a panel that has been
+     display:none must be redrawn once it is actually on screen. Same trap the
+     <details> toggle handlers already deal with. */
+  if(id==="review") render();
+  window.scrollTo(0,0);
+}
+
+/* A dot on the Plan tab while there is no plan — the one thing that blocks
+   everything else, visible from whichever view you happen to be on. */
+function markViewNav(){
+  var b=document.querySelector('#viewNav [data-view="setup"]');
+  if(!b) return;
+  var need=!S.planSet, has=b.querySelector(".dot");
+  if(need&&!has){ var d=document.createElement("span"); d.className="dot"; b.appendChild(d); }
+  else if(!need&&has){ has.parentNode.removeChild(has); }
+}
+
 /* ================= go ================= */
+buildViews();
 restore();
 renderSaves();
 syncSettings();
@@ -3073,6 +3169,7 @@ renderCats();
 renderPicker("");
 el("dateIn").value=todayISO();
 render();
+showView(S.planSet?"log":"setup");
 })();
 </script>
 </body>
