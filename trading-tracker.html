@@ -244,6 +244,21 @@
   .del{background:none;border:none;color:var(--muted);font-size:18px;padding:2px 8px;line-height:1;border-radius:6px}
   .del:hover{color:var(--critical);background:rgba(208,59,59,0.10)}
   .closein{width:120px;padding:6px 9px !important;font-size:13px !important;border-radius:7px}
+  /* entries: six columns, the rest one tap away */
+  #tbl{min-width:560px}
+  tr.main{cursor:pointer}
+  tr.main .chev{color:var(--muted);font-size:10px;margin-right:8px;display:inline-block;width:8px}
+  tr.main.on td{background:var(--series-1-soft)}
+  tr.det{display:none}
+  tr.det.on{display:table-row}
+  tr.det > td{padding:0 10px 11px}
+  tr.det .pairs{display:flex;gap:8px 22px;flex-wrap:wrap;align-items:center;
+                padding:10px 13px;border-radius:9px;background:var(--surface-2);
+                border:1px solid var(--border);font-size:12.5px;color:var(--muted);
+                text-align:left}
+  tr.det .pairs span{color:var(--ink);font-weight:650}
+  tr.det .pairs .del{margin-left:auto;font-size:12.5px;padding:5px 11px;
+                     border:1px solid var(--border);border-radius:7px}
 
   /* ---- charts ---- */
   svg{display:block;width:100%;height:auto;overflow:visible}
@@ -562,7 +577,7 @@
   <details class="sect" id="secNeeds" open>
     <summary><span class="stitle">What the next trade needs</span><span class="ssum" id="sumNeeds"></span></summary>
     <div class="sbody">
-      <p class="hint">Assuming you stake the <span id="needStake">&mdash;</span> you have free.</p>
+      <p class="hint">Assuming you stake <span id="needStake">&mdash;</span>.</p>
       <div id="needs"></div>
     </div>
   </details>
@@ -728,13 +743,11 @@
   <details class="sect" id="secEntries" style="margin-top:20px">
     <summary><span class="stitle">Your entries</span><span class="ssum" id="sumEntries"></span></summary>
     <div class="sbody">
-    <p class="hint">Newest at the bottom. Hit &times; to remove a row &mdash; everything below it recalculates.</p>
+    <p class="hint">Newest at the bottom. Tap any row for the rest of its figures, and to remove it &mdash; everything below recalculates.</p>
     <div class="scroll">
-      <table id="tbl">
+      <table id="tbl" class="narrow">
         <thead><tr>
-          <th>#</th><th>Date</th><th>What</th><th>Put in</th><th>Finished</th>
-          <th>Mult</th><th>Profit</th><th>Banked</th><th>Rolls on</th>
-          <th>Safe haven</th><th>Total money</th><th></th>
+          <th>#</th><th>What</th><th>Put in</th><th>Finished</th><th>Mult</th><th>Total money</th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -1627,42 +1640,55 @@ function mini(k,v,sub){
   return '<div><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+sub+'</div></div>';
 }
 
+/* Twelve columns pinned to a 900px minimum meant the entries table scrolled
+   sideways and led with nothing. Six columns now carry the story — what, in, out,
+   the multiple, and where that left you — and the other six live one tap away on
+   the row itself. Nothing was dropped, and Remove moved into the detail, which
+   suits a destructive control. The data-i / data-close / data-doclose attributes
+   are unchanged, so the existing handlers bind exactly as before. */
+function detailRow(pairs,i){
+  var s='<tr class="det"><td colspan="6"><div class="pairs">';
+  for(var k=0;k<pairs.length;k++)
+    s+='<div>'+pairs[k][0]+' <span>'+pairs[k][1]+'</span></div>';
+  return s+'<button class="del" data-i="'+i+'" title="Remove this entry">Remove</button>'
+         +'</div></td></tr>';
+}
+
 function renderEntries(c){
   var h="",i;
   if(!c.rows.length){
-    h='<tr><td colspan="12" class="empty">Nothing logged yet. Add your first trade above.</td></tr>';
-  } else {
-    for(i=0;i<c.rows.length;i++){
-      var r=c.rows[i];
-      if(r.k==="cash"){
-        var word=(r.amount>=0?"Paid in to ":"Taken out of ")+(r.pot==="safe"?"safe haven":"trading capital");
-        h+='<tr class="cashrow"><td>'+(i+1)+'</td><td>'+(r.date?fmtDate(r.date):"—")+'</td>'
-          +'<td colspan="6" style="text-align:left">'+word+' &nbsp;<b style="color:'
-          +(r.amount>=0?'var(--good-ink)':'var(--critical)')+'">'
-          +(r.amount>=0?"+":"")+gbp(r.amount,2)+'</b></td>'
-          +'<td>'+gbp(r.cap,2)+'</td><td>'+gbp(r.banked,2)+'</td><td><b>'+gbp(r.equity,2)+'</b></td>'
-          +'<td><button class="del" data-i="'+i+'" title="Remove">&times;</button></td></tr>';
-      } else if(r.open){
-        h+='<tr class="openrow"><td>'+(i+1)+'</td><td>'+(r.date?fmtDate(r.date):"—")+'</td>'
-          +'<td>'+mktCell(r.mkt)+'</td><td>'+gbp(r.start,2)+'</td>'
-          +'<td><input class="closein plain" type="text" inputmode="decimal" data-close="'+i+'" placeholder="£ or 3x"></td>'
-          +'<td><span class="pill open">Open</span></td>'
-          +'<td colspan="4" style="text-align:left">'
-          +'<button class="ghost" data-doclose="'+i+'">Close this trade</button></td>'
-          +'<td><b>'+gbp(r.equity,2)+'</b></td>'
-          +'<td><button class="del" data-i="'+i+'" title="Remove">&times;</button></td></tr>';
-      } else {
-        var cls=r.mult>=goalMult()-1e-9?"good":(r.mult<1?"bad":"mid");
-        h+='<tr><td>'+(i+1)+'</td><td>'+(r.date?fmtDate(r.date):"—")+'</td>'
-          +'<td>'+mktCell(r.mkt)+'</td><td>'+gbp(r.start,2)+'</td><td>'+gbp(r.finish,2)+'</td>'
-          +'<td><span class="pill '+cls+'">'+xm(r.mult)+'</span></td>'
-          +'<td style="color:'+(r.profit>=0?'var(--good-ink)':'var(--critical)')+'">'
-          +(r.profit>=0?"+":"−")+gbp(Math.abs(r.profit),2)+'</td>'
-          +'<td title="'+Math.round(r.split*100)+'% of the close">'+gbp(r.bank,2)
-          +'</td><td>'+gbp(r.roll,2)+'</td>'
-          +'<td>'+gbp(r.banked,2)+'</td><td><b>'+gbp(r.equity,2)+'</b></td>'
-          +'<td><button class="del" data-i="'+i+'" title="Remove">&times;</button></td></tr>';
-      }
+    el("tbody").innerHTML='<tr><td colspan="6" class="empty">Nothing logged yet. Add your first trade above.</td></tr>';
+    return;
+  }
+  for(i=0;i<c.rows.length;i++){
+    var r=c.rows[i],n=i+1,date=r.date?fmtDate(r.date):"—";
+    if(r.k==="cash"){
+      var word=(r.amount>=0?"Paid in to ":"Taken out of ")+(r.pot==="safe"?"safe haven":"trading capital");
+      h+='<tr class="main cashrow"><td><span class="chev">&#9656;</span>'+n+'</td>'
+        +'<td colspan="3" style="text-align:left">'+word+'</td>'
+        +'<td style="color:'+(r.amount>=0?'var(--good-ink)':'var(--critical)')+'"><b>'
+        +(r.amount>=0?"+":"")+gbp(r.amount,2)+'</b></td>'
+        +'<td><b>'+gbp(r.equity,2)+'</b></td></tr>'
+        +detailRow([["Date",date],["Trading pot",gbp(r.cap,2)],["Safe haven",gbp(r.banked,2)]],i);
+    } else if(r.open){
+      h+='<tr class="main openrow"><td><span class="chev">&#9656;</span>'+n+'</td>'
+        +'<td>'+mktCell(r.mkt)+'</td><td>'+gbp(r.start,2)+'</td>'
+        +'<td><input class="closein plain" type="text" inputmode="decimal" data-close="'+i+'" placeholder="£ or 3x"></td>'
+        +'<td><span class="pill open">Open</span></td>'
+        +'<td><button class="ghost" data-doclose="'+i+'">Close</button></td></tr>'
+        +detailRow([["Date",date],["Tied up",gbp(r.start,2)],["Safe haven",gbp(r.banked,2)]],i);
+    } else {
+      var cls=r.mult>=goalMult()-1e-9?"good":(r.mult<1?"bad":"mid");
+      h+='<tr class="main"><td><span class="chev">&#9656;</span>'+n+'</td>'
+        +'<td>'+mktCell(r.mkt)+'</td><td>'+gbp(r.start,2)+'</td><td>'+gbp(r.finish,2)+'</td>'
+        +'<td><span class="pill '+cls+'">'+xm(r.mult)+'</span></td>'
+        +'<td><b>'+gbp(r.equity,2)+'</b></td></tr>'
+        +detailRow([["Date",date],
+                    ["Profit",'<i style="font-style:normal;color:'+(r.profit>=0?'var(--good-ink)':'var(--critical)')+'">'
+                              +(r.profit>=0?"+":"−")+gbp(Math.abs(r.profit),2)+'</i>'],
+                    ["Banked",gbp(r.bank,2)+" ("+Math.round(r.split*100)+"%)"],
+                    ["Rolls on",gbp(r.roll,2)],
+                    ["Safe haven",gbp(r.banked,2)]],i);
     }
   }
   el("tbody").innerHTML=h;
@@ -2022,7 +2048,16 @@ function renderHitSel(c){
 }
 
 function renderNeeds(c){
-  el("needStake").textContent=gbp(c.capital);
+  /* This used to read "assuming you stake the [whole pot] you have free" while
+     neededFor() was sizing every one of these trades at the plan fraction. The
+     multiplier shown therefore never reconciled with the stake named above it —
+     it was computed against half the money the sentence claimed. Name the stake
+     actually used, and where it came from. */
+  var stake=isNum(S.deploy)?c.capital*S.deploy:c.capital;
+  el("needStake").innerHTML=isNum(S.deploy)
+    ? ("<b>"+gbp(stake,2)+"</b> &mdash; the "+Math.round(S.deploy*100)
+       +"% of your "+gbp(c.capital)+" your plan puts in")
+    : ("<b>"+gbp(stake,2)+"</b>");
   var out="";
   function line(lbl,res){
     if(!res) return "";
@@ -2693,11 +2728,27 @@ el("cashBtn").addEventListener("click",function(){
   render();
 });
 
+/* Tapping a row shows the rest of its figures. Clicks that land on a control —
+   the close-trade box or its button — are the control's, not the row's. */
+function toggleEntryRow(ev){
+  var tag=(ev.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="button"||tag==="a"||tag==="select") return;
+  var row=ev.target.closest?ev.target.closest("tr.main"):null;
+  if(!row) return;
+  var det=row.nextElementSibling;
+  if(!det||det.className.indexOf("det")<0) return;
+  var on=!det.classList.contains("on");
+  det.classList.toggle("on",on);
+  row.classList.toggle("on",on);
+  var ch=row.querySelector(".chev");
+  if(ch) ch.innerHTML=on?"&#9662;":"&#9656;";
+}
+
 el("tbody").addEventListener("click",function(ev){
   var d=ev.target.closest?ev.target.closest("[data-i]"):null;
   if(d){ S.entries.splice(+d.getAttribute("data-i"),1); render(); return; }
   var cb=ev.target.closest?ev.target.closest("[data-doclose]"):null;
-  if(!cb) return;
+  if(!cb){ toggleEntryRow(ev); return; }
   var idx=+cb.getAttribute("data-doclose");
   var inp=el("tbody").querySelector('[data-close="'+idx+'"]');
   if(!inp) return;
