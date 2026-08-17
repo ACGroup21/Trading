@@ -34,11 +34,18 @@ Not sure yet? **Show me a worked example** loads a demo: the recommended configu
 and four trades that are deliberately not a clean sweep, so it shows the difference
 between a win and a hit. One click clears it back to empty.
 
+## Three views
+
+**Plan** is set-up, done once. **Log** is where a trade goes, weekly. **Review** is
+everything the record tells you, monthly. The totals sit above all three, because
+they're true whichever one you're on.
+
 ## What it does
 
 | | |
 |---|---|
 | Your plan | The five numbers in one place, stated once, then held to. Per-trade settings still win for their own trade, so changing the plan never rewrites history |
+| Honest odds | The hit rate comes with an error bar. Eight hits from twelve isn't "67%" — it's a true rate somewhere between 39% and 86%, and the app recomputes your chances at both ends |
 | Position sizing | What share of the pot goes in — a loss costs the stake, not the ladder |
 | Banking | What share of each close is locked away and never traded again; both stored per trade |
 | Sticking to the plan | Flags stakes sized off plan and winners closed short, and prices the early exits in **rungs lost**. Thresholds are yours to set |

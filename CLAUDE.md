@@ -164,6 +164,25 @@ reset that also swallowed every saved plan would be a trap rather than a reset. 
 one floors `S` to `factoryDefaults()` before `adopt()`, so nothing the save omits
 survives from what was on screen.
 
+**The hit rate carries an error bar, and that is the point.** Everything downstream
+rests on one number measured from a handful of trades. `wilson()` gives the 95%
+interval — Wilson rather than the normal approximation, which collapses at small `n`
+and near 0 or 1, exactly where a ten-trade sample lives. `oddsBand()` re-runs
+`ladderOdds()` at both ends, so eight hits from twelve reports not "67%" but a true
+rate of 39–86% and a chance of reaching goal between 6.9% and 100%. **Do not quietly
+drop this to make the panel look tidier** — a sample that cannot separate success from
+failure should say so. Shown only when the rate is measured; an override is an
+assumption and assumptions have no error bar, and when the headline is still running on
+the assumed 70% the band says which number is which.
+
+**The page is three views, not one scroll.** `buildViews()` relocates existing blocks
+at boot into set-up / log / review — three jobs done once, weekly and monthly, which had
+been interleaved down 5,573px. Blocks are *moved*, not rewritten; to add one, put its id
+in `VIEWS`. Tiles sit above the switcher because the summary is true in every view.
+**`showView("review")` calls `render()` deliberately:** charts bail out at zero width, so
+a panel that has been `display:none` draws nothing until it is on screen — the same trap
+the `<details>` toggles handle.
+
 ## Gotchas
 
 **`isFinite(null)` is `true`.** `null` coerces to `0`, so a plain `isFinite()` check
