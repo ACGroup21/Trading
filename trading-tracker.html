@@ -82,10 +82,14 @@
   .helpq:hover{color:var(--ink);border-color:var(--axis)}
   .helpq.on{background:var(--series-1);border-color:var(--series-1);color:#fff}
 
+  /* Capped and scrollable: a long explainer next to a mid-screen button fits neither
+     below nor above, and would otherwise run off the bottom of the viewport. */
   .pop{position:fixed;z-index:60;display:none;width:min(340px,calc(100vw - 28px));
+       max-height:min(62vh,440px);
        background:var(--surface);border:1px solid var(--axis);border-radius:11px;
        box-shadow:0 14px 40px rgba(0,0,0,.34)}
-  .pop.on{display:block}
+  .pop.on{display:flex;flex-direction:column}
+  .popb{overflow-y:auto}
   .popt{display:flex;align-items:center;justify-content:space-between;gap:10px;
         padding:11px 13px 8px;font-weight:650;font-size:14px}
   .popb{padding:0 13px 13px;font-size:13.5px;line-height:1.6;color:var(--ink-2)}
@@ -3404,7 +3408,10 @@ function showPop(id,btn){
   var r=btn.getBoundingClientRect(),pr=p.getBoundingClientRect();
   var left=Math.min(Math.max(10,r.left-8),window.innerWidth-pr.width-10);
   var top=r.bottom+8;
-  if(top+pr.height>window.innerHeight-10) top=Math.max(10,r.top-pr.height-8);
+  /* prefer below, flip above if it does not fit, then clamp — a tall explainer beside
+     a mid-screen button fits neither way and must simply stay inside the viewport */
+  if(top+pr.height>window.innerHeight-10) top=r.top-pr.height-8;
+  top=Math.max(10,Math.min(top,window.innerHeight-pr.height-10));
   p.style.left=Math.round(left)+"px";
   p.style.top=Math.round(top)+"px";
   popFor=id;
