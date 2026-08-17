@@ -34,6 +34,12 @@ Not sure yet? **Show me a worked example** loads a demo: the recommended configu
 and four trades that are deliberately not a clean sweep, so it shows the difference
 between a win and a hit. One click clears it back to empty.
 
+## If you're not sure what something does
+
+**How this works** in the header explains the whole thing — what a ladder is, why the
+safe haven being locked matters, and how to start. Every section also carries a **?**
+for a short explanation of just that part.
+
 ## Three views
 
 **Plan** is set-up, done once. **Log** is where a trade goes, weekly. **Review** is
