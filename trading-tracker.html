@@ -73,6 +73,49 @@
   .devclear{padding:14px 16px;border-radius:10px;margin:4px 0 16px;font-size:14px;
             background:rgba(12,163,12,0.07);border:1px solid var(--good)}
 
+  /* ---- help: a "?" per section, and the full guide ---- */
+  .titlerow{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+  .helpq{width:19px;height:19px;padding:0;margin-left:9px;border-radius:50%;
+         border:1px solid var(--border);background:var(--surface-2);color:var(--muted);
+         font-size:11.5px;font-weight:700;line-height:1;cursor:pointer;vertical-align:middle;
+         font-family:var(--font)}
+  .helpq:hover{color:var(--ink);border-color:var(--axis)}
+  .helpq.on{background:var(--series-1);border-color:var(--series-1);color:#fff}
+
+  .pop{position:fixed;z-index:60;display:none;width:min(340px,calc(100vw - 28px));
+       background:var(--surface);border:1px solid var(--axis);border-radius:11px;
+       box-shadow:0 14px 40px rgba(0,0,0,.34)}
+  .pop.on{display:block}
+  .popt{display:flex;align-items:center;justify-content:space-between;gap:10px;
+        padding:11px 13px 8px;font-weight:650;font-size:14px}
+  .popb{padding:0 13px 13px;font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+  .popb p{margin:0 0 9px}
+  .popb p:last-child{margin:0}
+  .popb b{color:var(--ink);font-weight:650}
+  .popx{width:24px;height:24px;padding:0;border:none;background:transparent;color:var(--muted);
+        font-size:19px;line-height:1;border-radius:6px;cursor:pointer;flex:none}
+  .popx:hover{background:var(--surface-2);color:var(--ink)}
+
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:70;display:none}
+  .scrim.on{display:block}
+  .guide{position:fixed;z-index:71;display:none;left:50%;top:50%;transform:translate(-50%,-50%);
+         width:min(680px,calc(100vw - 28px));max-height:min(84vh,860px);
+         background:var(--surface);border:1px solid var(--axis);border-radius:14px;
+         box-shadow:0 22px 60px rgba(0,0,0,.45);flex-direction:column;overflow:hidden}
+  .guide.on{display:flex}
+  .guideh{display:flex;align-items:center;justify-content:space-between;gap:12px;
+          padding:15px 18px;border-bottom:1px solid var(--border);font-weight:650;font-size:17px}
+  .guideb{padding:18px;overflow-y:auto;font-size:14px;line-height:1.62;color:var(--ink-2)}
+  .guideb h4{color:var(--ink);font-size:15px;margin:22px 0 7px;letter-spacing:-0.005em}
+  .guideb h4:first-child{margin-top:0}
+  .guideb p{margin:0 0 10px;max-width:62ch}
+  .guideb b{color:var(--ink);font-weight:650}
+  .guideb ol,.guideb ul{margin:0 0 10px;padding-left:20px;max-width:62ch}
+  .guideb li{margin-bottom:5px}
+  .guideb .k{display:inline-block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;
+             color:var(--muted);border:1px solid var(--border);border-radius:99px;
+             padding:2px 9px;margin-right:7px}
+
   /* ---- three views ----
      Set-up, logging and review are used once, weekly and monthly, and they had all
      been interleaved down a six-screen scroll. Same blocks, moved into three panels. */
@@ -343,8 +386,13 @@
 <body>
 <div class="wrap">
 
-  <h1>Trading Ladder Tracker</h1>
-  <p class="sub">Log what you put in and what you got back. Everything else is worked out for you.</p>
+  <div class="titlerow">
+    <div>
+      <h1>Trading Ladder Tracker</h1>
+      <p class="sub">Log what you put in and what you got back. Everything else is worked out for you.</p>
+    </div>
+    <button class="ghost" id="guideBtn">How this works</button>
+  </div>
 
   <div class="demobar" id="demoBar">
     <span class="txt"><b>Demo data.</b> These are example numbers, not your trades. Clear it whenever you like &mdash; your own tracker starts empty.</span>
@@ -353,7 +401,9 @@
 
   <!-- ============ YOUR PLAN ============ -->
   <div class="card plan" id="planCard">
-    <h2 id="planH">Your plan</h2>
+    <!-- the label is its own span: renderPlan() rewrites it, and setting textContent
+         on the h2 itself would wipe the injected help button every render -->
+    <h2><span id="planH">Your plan</span></h2>
     <p class="hint" id="planHint"></p>
 
     <div class="plangrid" id="planGrid">
@@ -830,6 +880,23 @@
 </div>
 
 <div class="tip" id="tip"></div>
+
+<!-- per-section explainer, one element repositioned rather than one per section -->
+<div class="pop" id="pop" role="dialog" aria-modal="false" aria-labelledby="popTitle">
+  <div class="popt"><span id="popTitle"></span>
+    <button type="button" class="popx" id="popX" aria-label="Close">&times;</button></div>
+  <div class="popb" id="popBody"></div>
+</div>
+
+<!-- the full guide -->
+<div class="scrim" id="guideScrim"></div>
+<div class="guide" id="guide" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+  <div class="guideh">
+    <span id="guideTitle">How this works</span>
+    <button type="button" class="popx" id="guideX" aria-label="Close">&times;</button>
+  </div>
+  <div class="guideb" id="guideBody"></div>
+</div>
 
 <script>
 (function(){
@@ -3153,6 +3220,230 @@ window.addEventListener("resize",function(){
   rzTimer=setTimeout(function(){ var c=compute(); drawEquity(c); drawMult(c); },150);
 });
 
+/* ================= help =================
+   A "?" on every section rather than a wall of prose nobody reads, plus one full
+   guide behind the header button. Buttons are injected at boot from this table, so
+   adding a section's explainer means adding a key here and nothing else. */
+var HELP={
+  planCard:{t:"Your plan",b:
+    "<p>Five numbers, set once. <b>Starting capital</b> is what the ladder begins with. "
+    +"<b>Stake per trade</b> is the share of the pot that goes into each one. <b>Payoff "
+    +"target</b> is the multiple you close at. <b>Bank on each win</b> is the share locked "
+    +"away and never traded again. <b>Goal</b> is what you are aiming at.</p>"
+    +"<p>Nothing here is pre-filled, because these five decide the outcome more than any "
+    +"single trade does. Logging stays locked until they are set.</p>"
+    +"<p>They are the <i>default</i> for the next trade, not a rule applied backwards. Each "
+    +"trade keeps the numbers it was logged with, so changing the plan never rewrites your "
+    +"record.</p>"},
+  secFric:{t:"Costs and tax",b:
+    "<p>Off until you turn it on. These come off what is <b>forecast</b>, never off what you "
+    +"have logged — a recorded trade is real cash in and real cash out, so the spread you paid "
+    +"is already inside those two numbers. Taking it off twice would flatter nothing and "
+    +"corrupt your hit rate.</p>"
+    +"<p>With it on, your payoff target is the <b>gross</b> move you go looking for, and the "
+    +"app shows what it actually leaves you. At 9% each way a 5.00x nets 4.14x, which is three "
+    +"more rungs to the same goal.</p>"
+    +"<p>Tax is treated as money <b>set aside</b> from the safe haven, never taken out of the "
+    +"pot — that would change the rung count without saying so. The rate is yours to supply; "
+    +"the app does not know your band, and whether this is capital gains at all is a question "
+    +"for your accountant.</p>"},
+  logCard:{t:"Log a trade",b:
+    "<p>Two numbers. <b>What you put in</b> is pre-filled with your plan's stake. <b>What you "
+    +"finished with</b> is the total value when you closed — not the profit. Or type the "
+    +"multiplier and the other box fills itself.</p>"
+    +"<p>Enter real cash amounts. The fill you got is the fill you got, so spread and slippage "
+    +"are already inside those figures.</p>"
+    +"<p><b>Still open</b> logs a trade you have not closed: the stake is tied up and shows in "
+    +"your entries, where you can close it later. <b>Add or take out money</b> records deposits "
+    +"and withdrawals separately, so growth never counts money you paid in as money you made.</p>"},
+  secNeeds:{t:"What the next trade needs",b:
+    "<p>The multiple your next trade has to hit to reach each thing you are chasing — getting "
+    +"back to your best ever total, your next milestone, and staying on your projection.</p>"
+    +"<p>Every figure assumes the stake named at the top of the section, which is your plan's "
+    +"share of the pot rather than everything you have free.</p>"},
+  secEquity:{t:"Total money, entry by entry",b:
+    "<p>Banked plus what is still in play, after every entry. The dashed line carries your "
+    +"projection on from today.</p>"
+    +"<p>It only ever falls by what a trade actually lost, because the safe haven cannot be "
+    +"traded — that is the shape the strategy is designed to produce.</p>"},
+  secMult:{t:"How many times you multiplied",b:
+    "<p>One bar per closed trade. The dashed line is your target. Under 1x means that trade "
+    +"lost money.</p>"
+    +"<p>A bar can clear 1x and still miss the line: profitable, but short of what the ladder "
+    +"needed. That gap is what <b>Sticking to the plan</b> prices.</p>"},
+  secProj:{t:"Projection",b:
+    "<p>Where the next trades take you <i>if every one goes to plan</i> — which is a very "
+    +"demanding assumption and the reason the odds below it exist.</p>"
+    +"<p>Columns run in three stages: what goes in, what it has to do, where that leaves you. "
+    +"Tap the star on any line to fix it as a milestone.</p>"
+    +"<p>The odds underneath run a simulation from where you actually are, and report what "
+    +"your logged trades can support rather than a single confident number.</p>"},
+  secMs:{t:"Milestones",b:
+    "<p>Fixed once you set them. Logging a trade moves you towards a milestone; it never moves "
+    +"the milestone.</p>"
+    +"<p>Judge them on total money or on the safe haven alone — the second is the stricter "
+    +"test, since it only counts what is locked away.</p>"},
+  secRecord:{t:"Your record",b:
+    "<p><b>Hit rate</b> is against your target. <b>Win rate</b> is merely against breakeven. "
+    +"They are different, and the ladder only cares about the first: a 2.00x when the rung "
+    +"needed 5.00x is profit and a miss.</p>"
+    +"<p>The hit rate carries a range, because it is measured from a handful of trades. Eight "
+    +"hits from twelve is not 67% — it is somewhere between 39% and 86%, and that spread is the "
+    +"difference between a plan that completes and one that stalls.</p>"},
+  secByMkt:{t:"By market",b:
+    "<p>Where your multipliers actually come from. Useful for spotting that one instrument is "
+    +"carrying the record while another quietly costs you.</p>"},
+  secDev:{t:"Sticking to the plan",b:
+    "<p>A plan only produces the numbers it promises if you follow it, and both ways of "
+    +"breaking it are silent.</p>"
+    +"<p><b>Sizing off plan</b> changes what a loss costs without changing anything on screen. "
+    +"<b>Closing a winner short</b> still books a profit while quietly adding rungs to the far "
+    +"end of the ladder — so that one is priced, in rungs lost.</p>"
+    +"<p>Losing trades are deliberately not counted. A loss is the strategy working as "
+    +"designed, not a lapse. Both thresholds are yours to set.</p>"},
+  secEntries:{t:"Your entries",b:
+    "<p>Newest at the bottom. Six columns carry the story; tap any row for the rest of its "
+    +"figures and to remove it.</p>"
+    +"<p>Removing a row recalculates everything below it, because the whole record is replayed "
+    +"from your starting capital rather than stored as running totals.</p>"},
+  secSettings:{t:"Settings & your data",b:
+    "<p><b>Download my data</b> is your backup and the only way to move entries between "
+    +"browsers or machines. <b>Save this as…</b> keeps several plans side by side — a live "
+    +"ladder and a what-if — and those survive a reset.</p>"
+    +"<p><b>Clear all entries</b> removes the trades and keeps your plan. <b>Reset everything</b> "
+    +"puts the app back to empty. Both ask twice.</p>"}
+};
+
+function guideHTML(){
+  return "<h4>What this is</h4>"
+  +"<p>A journal for a <b>ladder</b>: stake part of a pot, aim for a payoff multiple, lock part "
+  +"of every win away where it is never traded again, and roll the rest into the next trade. "
+  +"The tracker records real trades against that structure and tells you how the plan is "
+  +"actually going.</p>"
+  +"<p>It does the arithmetic of the plan you give it. Whether that plan is achievable is a "
+  +"separate question, and one it will not flatter you about.</p>"
+
+  +"<h4>The two pots</h4>"
+  +"<p>Your money sits in two places. The <b>trading pot</b> is what is at risk. The <b>safe "
+  +"haven</b> is what you have banked, and it is locked — it never funds another trade.</p>"
+  +"<p>That lock is the strongest part of the structure: it means the plan cannot go to zero "
+  +"overall, however badly a single trade goes. It also means a wipe on the pot is survivable "
+  +"rather than terminal, which is why the stake fraction matters so much.</p>"
+
+  +"<h4>Three views</h4>"
+  +"<p><span class='k'>Plan</span> Set-up, done once — your five numbers, and costs if you "
+  +"want them.</p>"
+  +"<p><span class='k'>Log</span> Where a trade goes. The one you will use weekly.</p>"
+  +"<p><span class='k'>Review</span> Everything the record tells you: charts, projection, your "
+  +"record, and where you drifted. Monthly.</p>"
+  +"<p>The four totals sit above all three, because they are true whichever view you are on.</p>"
+
+  +"<h4>Getting started</h4>"
+  +"<ol>"
+  +"<li>On <b>Plan</b>, fill in the five numbers and save. Nothing is pre-filled on purpose.</li>"
+  +"<li>On <b>Log</b>, enter what you put in and what you finished with. The stake is already "
+  +"filled from your plan.</li>"
+  +"<li>Pick what you traded, so <b>By market</b> can tell you where your results come from.</li>"
+  +"<li>Repeat. After about ten trades the record starts to mean something.</li>"
+  +"<li>Take a backup now and then with <b>Download my data</b>.</li>"
+  +"</ol>"
+  +"<p>Not sure yet? <b>Show me a worked example</b> on the Plan view loads a demo — including "
+  +"a wipe and a profitable miss, because a clean sweep would teach you nothing. One click "
+  +"clears it.</p>"
+
+  +"<h4>A win and a hit are different</h4>"
+  +"<p>A <b>win</b> makes money. A <b>hit</b> reaches the target the rung needed. A 2.00x when "
+  +"you needed 5.00x is a win and a miss, and the ladder only cares about the miss. The app "
+  +"reports both and never conflates them.</p>"
+
+  +"<h4>Rungs</h4>"
+  +"<p>A rung is one clean win at your plan. It is the unit the ladder climbs in, and it is why "
+  +"closing a winner early is expensive: you keep the profit but forfeit most of the rung, so "
+  +"the goal moves further away. <b>Sticking to the plan</b> counts that cost.</p>"
+
+  +"<h4>Where your data lives</h4>"
+  +"<p>In this browser, on this machine. There is no account and no server, and nothing is ever "
+  +"sent anywhere. Storage belongs to the <i>site</i>, so every page here shares one set of "
+  +"entries and keeps them between visits.</p>"
+  +"<p>A copy opened from your own disk is a separate island with its own empty tracker. Use "
+  +"<b>Download my data</b> and <b>Load a data file</b> to move between machines.</p>"
+
+  +"<h4>What it will not do</h4>"
+  +"<p>It will not tell you the plan is good. Every probability it reports depends on a hit "
+  +"rate only your own trades can establish, and it shows that number's range rather than "
+  +"quoting a confident-looking headline. Turning costs on makes the projections look worse; "
+  +"that is the same plan described more accurately, not a plan that got worse.</p>"
+  +"<p>It is a calculator, not financial or tax advice.</p>";
+}
+
+function initHelp(){
+  var id;
+  for(id in HELP) if(HELP.hasOwnProperty(id)){
+    var host=el(id); if(!host) continue;
+    var head=host.querySelector("summary .stitle")||host.querySelector("summary")
+             ||host.querySelector("h2");
+    if(!head) continue;
+    var b=document.createElement("button");
+    b.type="button"; b.className="helpq"; b.setAttribute("data-help",id);
+    b.setAttribute("aria-label","What is this section?");
+    b.setAttribute("title","What is this?");
+    b.textContent="?";
+    head.appendChild(b);
+  }
+  el("guideBody").innerHTML=guideHTML();
+}
+
+var popFor=null;
+function showPop(id,btn){
+  var d=HELP[id]; if(!d) return;
+  var p=el("pop");
+  el("popTitle").textContent=d.t;
+  el("popBody").innerHTML=d.b;
+  p.classList.add("on");
+  /* measure after it is displayed, then keep it on screen */
+  var r=btn.getBoundingClientRect(),pr=p.getBoundingClientRect();
+  var left=Math.min(Math.max(10,r.left-8),window.innerWidth-pr.width-10);
+  var top=r.bottom+8;
+  if(top+pr.height>window.innerHeight-10) top=Math.max(10,r.top-pr.height-8);
+  p.style.left=Math.round(left)+"px";
+  p.style.top=Math.round(top)+"px";
+  popFor=id;
+  var qs=document.querySelectorAll(".helpq"),i;
+  for(i=0;i<qs.length;i++) qs[i].classList.toggle("on",qs[i].getAttribute("data-help")===id);
+}
+function hidePop(){
+  el("pop").classList.remove("on"); popFor=null;
+  var qs=document.querySelectorAll(".helpq"),i;
+  for(i=0;i<qs.length;i++) qs[i].classList.remove("on");
+}
+/* The "?" sits inside <summary>, so its click must not also toggle the section. */
+document.addEventListener("click",function(ev){
+  var q=ev.target.closest?ev.target.closest("[data-help]"):null;
+  if(q){
+    ev.preventDefault(); ev.stopPropagation();
+    var id=q.getAttribute("data-help");
+    if(popFor===id) hidePop(); else showPop(id,q);
+    return;
+  }
+  if(el("pop").classList.contains("on")&&!(ev.target.closest&&ev.target.closest("#pop"))) hidePop();
+},true);
+el("popX").addEventListener("click",hidePop);
+window.addEventListener("resize",function(){ if(popFor) hidePop(); });
+
+function showGuide(on){
+  el("guide").classList.toggle("on",on);
+  el("guideScrim").classList.toggle("on",on);
+  if(on){ hidePop(); el("guideBody").scrollTop=0; }
+}
+el("guideBtn").addEventListener("click",function(){ showGuide(true); });
+el("guideX").addEventListener("click",function(){ showGuide(false); });
+el("guideScrim").addEventListener("click",function(){ showGuide(false); });
+document.addEventListener("keydown",function(ev){
+  if(ev.key!=="Escape") return;
+  if(el("guide").classList.contains("on")) showGuide(false);
+  else if(popFor) hidePop();
+});
+
 /* ================= three views =================
    Set-up, logging and review are three jobs done at completely different rates —
    once, weekly, monthly — and they had all been interleaved down a six-screen
@@ -3230,6 +3521,7 @@ function markViewNav(){
 }
 
 /* ================= go ================= */
+initHelp();
 buildViews();
 restore();
 renderSaves();
