@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skin options — Trading Ladder Tracker</title>
+<style>
+  /* ── the chooser's own chrome, deliberately neutral so the skins are judged
+        against each other and not against a competing background ───────────── */
+  :root{
+    --page:#141416; --page-2:#1c1c1f; --page-ink:#f2f2f0; --page-ink-2:#a3a29e;
+    --page-line:rgba(255,255,255,.11);
+    --ui: system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--page-ink);font-family:var(--ui);
+       font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 22px 90px}
+  header{border-bottom:1px solid var(--page-line);padding-bottom:22px;margin-bottom:12px}
+  h1{font-size:27px;margin:0 0 8px;letter-spacing:-0.02em}
+  .lede{color:var(--page-ink-2);margin:0;max-width:70ch;font-size:14.5px}
+  .lede b{color:var(--page-ink)}
+  .rule{margin:22px 0 26px;padding:13px 15px;border-radius:9px;background:var(--page-2);
+        border:1px solid var(--page-line);font-size:13.5px;color:var(--page-ink-2);max-width:70ch}
+  .rule b{color:var(--page-ink)}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:22px}
+  @media (max-width:560px){.grid{grid-template-columns:1fr}}
+
+  .skin{border-radius:14px;overflow:hidden;border:1px solid var(--page-line);background:var(--page-2)}
+  .skinhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;padding:14px 17px;
+            border-bottom:1px solid var(--page-line)}
+  .skinhead .n{font-weight:660;font-size:15.5px;letter-spacing:-0.01em}
+  .skinhead .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+               color:var(--page-ink-2);padding:2px 7px;border:1px solid var(--page-line);border-radius:99px}
+  .skinhead .why{flex-basis:100%;color:var(--page-ink-2);font-size:13px;margin-top:2px}
+
+  /* ── the sample: identical markup in every card, only the tokens change ──── */
+  .sample{background:var(--plane);color:var(--ink);padding:18px;font-family:var(--font)}
+  .srow{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .tile{flex:1;min-width:132px;background:var(--surface);border:1px solid var(--border);
+        border-radius:var(--radius);padding:12px 13px}
+  .tile.safe{border-left:3px solid var(--good)}
+  .tile.play{border-left:3px solid var(--series-1)}
+  .tile .lab{font-size:10px;color:var(--ink-2);text-transform:uppercase;letter-spacing:.07em}
+  .tile .val{font-size:22px;font-weight:650;letter-spacing:-0.02em;margin-top:3px;
+             font-variant-numeric:tabular-nums}
+  .tile .foot{font-size:11px;color:var(--muted);margin-top:2px}
+
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  .b{font-family:var(--font);font-size:13px;font-weight:600;border-radius:9px;
+     border:1px solid var(--border);padding:9px 15px;background:var(--surface-2);color:var(--ink)}
+  .b.primary{background:var(--series-1);border-color:var(--series-1);color:var(--on-accent)}
+  .b.danger{color:var(--critical);border-color:var(--critical);background:transparent}
+
+  .preview{padding:10px 13px;border-radius:9px;font-size:13px;margin-bottom:12px;
+           border:1px solid var(--good);background:var(--good-soft);color:var(--ink)}
+  .preview b{color:var(--good-ink)}
+
+  .flag{display:flex;gap:9px;align-items:baseline;padding:8px 11px;border-radius:8px;
+        background:var(--surface-2);border:1px solid var(--border);
+        border-left:3px solid var(--warn);font-size:12.5px;margin-bottom:7px}
+  .flag.cost{border-left-color:var(--critical)}
+  .flag .who{font-weight:650;white-space:nowrap}
+  .flag .what{color:var(--ink-2);flex:1}
+  .flag .x{color:var(--critical);font-weight:650;white-space:nowrap}
+  .flag .w{color:var(--warn);font-weight:650;white-space:nowrap}
+
+  .chart{margin-top:12px;background:var(--surface);border:1px solid var(--border);
+         border-radius:var(--radius);padding:12px}
+  .chart .cap{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;
+              margin-bottom:8px}
+  .bars{display:flex;align-items:flex-end;gap:7px;height:76px;position:relative;
+        border-bottom:1px solid var(--axis)}
+  .bars .goal{position:absolute;left:0;right:0;top:26px;border-top:1px dashed var(--muted)}
+  .bar{flex:1;background:var(--good);border-radius:3px 3px 0 0;min-width:12px}
+  .bar.miss{background:var(--critical)}
+  .bar.mid{background:var(--series-1)}
+
+  .sw{display:flex;gap:0;margin-top:14px;border-radius:7px;overflow:hidden;
+      border:1px solid var(--border)}
+  .sw i{flex:1;height:22px;display:block}
+  .swlab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;
+         letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:5px}
+
+  .verdict{padding:11px 17px;font-size:12.5px;color:var(--page-ink-2);
+           border-top:1px solid var(--page-line);background:var(--page-2)}
+  .verdict b{color:var(--page-ink)}
+
+  footer{margin-top:42px;padding-top:20px;border-top:1px solid var(--page-line);
+         color:var(--page-ink-2);font-size:13px}
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     THE SIX. Each block is exactly what would be pasted into the tracker's
+     :root — same token names, nothing else changes.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* 1 — Phosphor: the Matrix idea without the green. A CRT terminal in amber,
+         which is what amber monochrome monitors actually looked like. */
+  .s-phosphor{
+    --plane:#0b0a08; --surface:#141210; --surface-2:#1c1917;
+    --ink:#f7e6c8; --ink-2:#b8a382; --muted:#7d6f5a;
+    --grid:#241f1a; --axis:#3a322a; --border:rgba(247,230,200,.13);
+    --series-1:#ffb128; --series-1-soft:rgba(255,177,40,.14); --on-accent:#100c04;
+    --good:#5ce07a; --good-ink:#7ceb95; --good-soft:rgba(92,224,122,.10);
+    --warn:#ffd166; --critical:#ff5f56;
+    --radius:4px; --font:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  /* 2 — Hologram: aerospace HUD. Deep navy void, cyan instrumentation, hairlines. */
+  .s-hud{
+    --plane:#050b12; --surface:#0b1520; --surface-2:#11202e;
+    --ink:#e6f6ff; --ink-2:#93b8ce; --muted:#5d7f93;
+    --grid:#132433; --axis:#22405a; --border:rgba(120,220,255,.16);
+    --series-1:#3fd3ff; --series-1-soft:rgba(63,211,255,.13); --on-accent:#02121c;
+    --good:#4bf0b0; --good-ink:#68f5c1; --good-soft:rgba(75,240,176,.10);
+    --warn:#ffc247; --critical:#ff5a76;
+    --radius:2px; --font:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  /* 3 — Nightdrive: synthwave restrained enough to read. Indigo ground, magenta
+         accent, cyan reserved so it never competes with the semantics. */
+  .s-nightdrive{
+    --plane:#0d0819; --surface:#160f28; --surface-2:#1e1636;
+    --ink:#f4ecff; --ink-2:#b9a8d9; --muted:#7d6ba3;
+    --grid:#221a3a; --axis:#372a5c; --border:rgba(200,160,255,.16);
+    --series-1:#ff5fd2; --series-1-soft:rgba(255,95,210,.13); --on-accent:#12061f;
+    --good:#3ff0c0; --good-ink:#5df5cd; --good-soft:rgba(63,240,192,.10);
+    --warn:#ffcc55; --critical:#ff4d6d;
+    --radius:10px; --font:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  /* 4 — Blueprint: technical drawing. Ink-blue ground, chalk-white line work,
+         the accent kept cool so figures read as measurements. */
+  .s-blueprint{
+    --plane:#071c2e; --surface:#0b2740; --surface-2:#0f3050;
+    --ink:#eaf4ff; --ink-2:#a9c8e0; --muted:#6f93ad;
+    --grid:#123c5c; --axis:#2a5679; --border:rgba(190,225,255,.20);
+    --series-1:#7fd4ff; --series-1-soft:rgba(127,212,255,.14); --on-accent:#04121e;
+    --good:#57e08f; --good-ink:#74e8a4; --good-soft:rgba(87,224,143,.11);
+    --warn:#ffd24d; --critical:#ff6b6b;
+    --radius:3px; --font:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  /* 5 — Titanium: restrained industrial. Near-black, cool grey metal, one hot
+         accent. The quietest of the six and the easiest to sit with for an hour. */
+  .s-titanium{
+    --plane:#0e0f11; --surface:#17191c; --surface-2:#1f2226;
+    --ink:#f0f2f5; --ink-2:#a8aeb8; --muted:#6f757e;
+    --grid:#232629; --axis:#333840; --border:rgba(240,242,245,.11);
+    --series-1:#ff6a1f; --series-1-soft:rgba(255,106,31,.13); --on-accent:#120600;
+    --good:#3ecf7a; --good-ink:#5ad894; --good-soft:rgba(62,207,122,.10);
+    --warn:#f5b93c; --critical:#f0555f;
+    --radius:8px; --font:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  /* 6 — Frost: futurism that isn't dark. Cold white, glass surfaces, deep
+         electric blue. Proves the skin system isn't only a night mode. */
+  .s-frost{
+    --plane:#eef2f7; --surface:#ffffff; --surface-2:#e4eaf2;
+    --ink:#0a1420; --ink-2:#43566b; --muted:#7286a0;
+    --grid:#d6dfea; --axis:#b3c2d4; --border:rgba(10,20,32,.13);
+    --series-1:#1b4dff; --series-1-soft:rgba(27,77,255,.10); --on-accent:#ffffff;
+    --good:#0f8f4a; --good-ink:#0b7a3e; --good-soft:rgba(15,143,74,.10);
+    --warn:#a86b00; --critical:#c62828;
+    --radius:12px; --font:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Skin options</h1>
+  <p class="lede">Six directions for the Trading Ladder Tracker. Every card below is the <b>same markup</b> — tiles, buttons, a preview, two deviation flags and a multiplier chart. Only the sixteen CSS custom properties change, which is all a skin is.</p>
+</header>
+
+<div class="rule">
+  <b>What to judge them on.</b> In this app colour carries meaning: <b>good</b>, <b>warn</b> and <b>critical</b> tell you whether a trade hit, drifted or cost you. So the accent that runs the interface has to stay clearly apart from those three — otherwise every bar on the chart reads as a win. Each card ends with whether it holds that line.
+</div>
+
+<div class="grid">
+
+  <!-- 1 -->
+  <div class="skin">
+    <div class="skinhead"><span class="n">Phosphor</span><span class="k">amber CRT</span>
+      <span class="why">The Matrix idea with the green taken out — amber monochrome, which is what those terminals actually were. Mono throughout, sharp corners.</span></div>
+    <div class="sample s-phosphor">
+      <div class="srow">
+        <div class="tile safe"><div class="lab">Safe haven</div><div class="val">£2,308</div><div class="foot">Locked away</div></div>
+        <div class="tile play"><div class="lab">Free to trade</div><div class="val">£2,372</div><div class="foot">Next trade risks this</div></div>
+      </div>
+      <div class="btns"><button class="b primary">Save trade</button><button class="b">Clear</button><button class="b danger">Reset everything</button></div>
+      <div class="preview"><b>5.00x</b> — goal hit. £825 to safe haven, £1,675 rolls on.</div>
+      <div class="flag"><span class="who">Trade 2</span><span class="what">staked 69% of the pot, plan says 50%</span><span class="w">+19 pts</span></div>
+      <div class="flag cost"><span class="who">Trade 4</span><span class="what">closed at 1.50x on a 4.14x target</span><span class="x">−1.00 rungs</span></div>
+      <div class="chart"><div class="cap">Multiplier per trade</div>
+        <div class="bars"><div class="goal"></div>
+          <div class="bar" style="height:70%"></div><div class="bar miss" style="height:12%"></div>
+          <div class="bar" style="height:66%"></div><div class="bar mid" style="height:30%"></div>
+          <div class="bar" style="height:74%"></div><div class="bar miss" style="height:9%"></div></div></div>
+      <div class="sw"><i style="background:var(--series-1)"></i><i style="background:var(--good)"></i><i style="background:var(--warn)"></i><i style="background:var(--critical)"></i><i style="background:var(--surface-2)"></i></div>
+      <div class="swlab"><span>accent</span><span>good</span><span>warn</span><span>critical</span><span>surface</span></div>
+    </div>
+    <div class="verdict"><b>Holds for good and critical</b> &mdash; amber chrome leaves green free to mean "hit". But accent and "warn" are both amber and sit closer than any other pair here; look at the swatch strip before choosing it. Mono everywhere suits the figures and slows the prose.</div>
+  </div>
+
+  <!-- 2 -->
+  <div class="skin">
+    <div class="skinhead"><span class="n">Hologram</span><span class="k">aerospace hud</span>
+      <span class="why">Instrument panel: deep navy void, cyan readouts, hairline borders and almost no corner radius.</span></div>
+    <div class="sample s-hud">
+      <div class="srow">
+        <div class="tile safe"><div class="lab">Safe haven</div><div class="val">£2,308</div><div class="foot">Locked away</div></div>
+        <div class="tile play"><div class="lab">Free to trade</div><div class="val">£2,372</div><div class="foot">Next trade risks this</div></div>
+      </div>
+      <div class="btns"><button class="b primary">Save trade</button><button class="b">Clear</button><button class="b danger">Reset everything</button></div>
+      <div class="preview"><b>5.00x</b> — goal hit. £825 to safe haven, £1,675 rolls on.</div>
+      <div class="flag"><span class="who">Trade 2</span><span class="what">staked 69% of the pot, plan says 50%</span><span class="w">+19 pts</span></div>
+      <div class="flag cost"><span class="who">Trade 4</span><span class="what">closed at 1.50x on a 4.14x target</span><span class="x">−1.00 rungs</span></div>
+      <div class="chart"><div class="cap">Multiplier per trade</div>
+        <div class="bars"><div class="goal"></div>
+          <div class="bar" style="height:70%"></div><div class="bar miss" style="height:12%"></div>
+          <div class="bar" style="height:66%"></div><div class="bar mid" style="height:30%"></div>
+          <div class="bar" style="height:74%"></div><div class="bar miss" style="height:9%"></div></div></div>
+      <div class="sw"><i style="background:var(--series-1)"></i><i style="background:var(--good)"></i><i style="background:var(--warn)"></i><i style="background:var(--critical)"></i><i style="background:var(--surface-2)"></i></div>
+      <div class="swlab"><span>accent</span><span>good</span><span>warn</span><span>critical</span><span>surface</span></div>
+    </div>
+    <div class="verdict"><b>Watch it.</b> Cyan accent and mint "good" are the nearest pair of the six — fine here, but don't let either drift further toward the other.</div>
+  </div>
+
+  <!-- 3 -->
+  <div class="skin">
+    <div class="skinhead"><span class="n">Nightdrive</span><span class="k">synthwave</span>
+      <span class="why">Indigo ground with a magenta accent. Warmer and more characterful than the rest; the one with a mood rather than a temperature.</span></div>
+    <div class="sample s-nightdrive">
+      <div class="srow">
+        <div class="tile safe"><div class="lab">Safe haven</div><div class="val">£2,308</div><div class="foot">Locked away</div></div>
+        <div class="tile play"><div class="lab">Free to trade</div><div class="val">£2,372</div><div class="foot">Next trade risks this</div></div>
+      </div>
+      <div class="btns"><button class="b primary">Save trade</button><button class="b">Clear</button><button class="b danger">Reset everything</button></div>
+      <div class="preview"><b>5.00x</b> — goal hit. £825 to safe haven, £1,675 rolls on.</div>
+      <div class="flag"><span class="who">Trade 2</span><span class="what">staked 69% of the pot, plan says 50%</span><span class="w">+19 pts</span></div>
+      <div class="flag cost"><span class="who">Trade 4</span><span class="what">closed at 1.50x on a 4.14x target</span><span class="x">−1.00 rungs</span></div>
+      <div class="chart"><div class="cap">Multiplier per trade</div>
+        <div class="bars"><div class="goal"></div>
+          <div class="bar" style="height:70%"></div><div class="bar miss" style="height:12%"></div>
+          <div class="bar" style="height:66%"></div><div class="bar mid" style="height:30%"></div>
+          <div class="bar" style="height:74%"></div><div class="bar miss" style="height:9%"></div></div></div>
+      <div class="sw"><i style="background:var(--series-1)"></i><i style="background:var(--good)"></i><i style="background:var(--warn)"></i><i style="background:var(--critical)"></i><i style="background:var(--surface-2)"></i></div>
+      <div class="swlab"><span>accent</span><span>good</span><span>warn</span><span>critical</span><span>surface</span></div>
+    </div>
+    <div class="verdict"><b>Holds well.</b> Magenta sits nowhere near the semantic three, so the chart stays unambiguous. The loudest option — check it still appeals on a Tuesday.</div>
+  </div>
+
+  <!-- 4 -->
+  <div class="skin">
+    <div class="skinhead"><span class="n">Blueprint</span><span class="k">technical</span>
+      <span class="why">Drafting table. Ink-blue ground, chalk line work, figures presented as measurements rather than money.</span></div>
+    <div class="sample s-blueprint">
+      <div class="srow">
+        <div class="tile safe"><div class="lab">Safe haven</div><div class="val">£2,308</div><div class="foot">Locked away</div></div>
+        <div class="tile play"><div class="lab">Free to trade</div><div class="val">£2,372</div><div class="foot">Next trade risks this</div></div>
+      </div>
+      <div class="btns"><button class="b primary">Save trade</button><button class="b">Clear</button><button class="b danger">Reset everything</button></div>
+      <div class="preview"><b>5.00x</b> — goal hit. £825 to safe haven, £1,675 rolls on.</div>
+      <div class="flag"><span class="who">Trade 2</span><span class="what">staked 69% of the pot, plan says 50%</span><span class="w">+19 pts</span></div>
+      <div class="flag cost"><span class="who">Trade 4</span><span class="what">closed at 1.50x on a 4.14x target</span><span class="x">−1.00 rungs</span></div>
+      <div class="chart"><div class="cap">Multiplier per trade</div>
+        <div class="bars"><div class="goal"></div>
+          <div class="bar" style="height:70%"></div><div class="bar miss" style="height:12%"></div>
+          <div class="bar" style="height:66%"></div><div class="bar mid" style="height:30%"></div>
+          <div class="bar" style="height:74%"></div><div class="bar miss" style="height:9%"></div></div></div>
+      <div class="sw"><i style="background:var(--series-1)"></i><i style="background:var(--good)"></i><i style="background:var(--warn)"></i><i style="background:var(--critical)"></i><i style="background:var(--surface-2)"></i></div>
+      <div class="swlab"><span>accent</span><span>good</span><span>warn</span><span>critical</span><span>surface</span></div>
+    </div>
+    <div class="verdict"><b>Holds.</b> The ground is blue, so a blue accent has less room than it looks — this is the one to re-check on your own screen.</div>
+  </div>
+
+  <!-- 5 -->
+  <div class="skin">
+    <div class="skinhead"><span class="n">Titanium</span><span class="k">industrial</span>
+      <span class="why">Near-black and cool grey with a single hot accent. The quietest of the six, and the one designed to be sat with for an hour.</span></div>
+    <div class="sample s-titanium">
+      <div class="srow">
+        <div class="tile safe"><div class="lab">Safe haven</div><div class="val">£2,308</div><div class="foot">Locked away</div></div>
+        <div class="tile play"><div class="lab">Free to trade</div><div class="val">£2,372</div><div class="foot">Next trade risks this</div></div>
+      </div>
+      <div class="btns"><button class="b primary">Save trade</button><button class="b">Clear</button><button class="b danger">Reset everything</button></div>
+      <div class="preview"><b>5.00x</b> — goal hit. £825 to safe haven, £1,675 rolls on.</div>
+      <div class="flag"><span class="who">Trade 2</span><span class="what">staked 69% of the pot, plan says 50%</span><span class="w">+19 pts</span></div>
+      <div class="flag cost"><span class="who">Trade 4</span><span class="what">closed at 1.50x on a 4.14x target</span><span class="x">−1.00 rungs</span></div>
+      <div class="chart"><div class="cap">Multiplier per trade</div>
+        <div class="bars"><div class="goal"></div>
+          <div class="bar" style="height:70%"></div><div class="bar miss" style="height:12%"></div>
+          <div class="bar" style="height:66%"></div><div class="bar mid" style="height:30%"></div>
+          <div class="bar" style="height:74%"></div><div class="bar miss" style="height:9%"></div></div></div>
+      <div class="sw"><i style="background:var(--series-1)"></i><i style="background:var(--good)"></i><i style="background:var(--warn)"></i><i style="background:var(--critical)"></i><i style="background:var(--surface-2)"></i></div>
+      <div class="swlab"><span>accent</span><span>good</span><span>warn</span><span>critical</span><span>surface</span></div>
+    </div>
+    <div class="verdict"><b>Holds, with a caveat.</b> Orange accent sits close to amber "warn" — the two are separated by weight and position here, not hue alone.</div>
+  </div>
+
+  <!-- 6 -->
+  <div class="skin">
+    <div class="skinhead"><span class="n">Frost</span><span class="k">light</span>
+      <span class="why">Futurism that isn't a night mode. Cold white, glass surfaces, deep electric blue — and the only one you could read in daylight.</span></div>
+    <div class="sample s-frost">
+      <div class="srow">
+        <div class="tile safe"><div class="lab">Safe haven</div><div class="val">£2,308</div><div class="foot">Locked away</div></div>
+        <div class="tile play"><div class="lab">Free to trade</div><div class="val">£2,372</div><div class="foot">Next trade risks this</div></div>
+      </div>
+      <div class="btns"><button class="b primary">Save trade</button><button class="b">Clear</button><button class="b danger">Reset everything</button></div>
+      <div class="preview"><b>5.00x</b> — goal hit. £825 to safe haven, £1,675 rolls on.</div>
+      <div class="flag"><span class="who">Trade 2</span><span class="what">staked 69% of the pot, plan says 50%</span><span class="w">+19 pts</span></div>
+      <div class="flag cost"><span class="who">Trade 4</span><span class="what">closed at 1.50x on a 4.14x target</span><span class="x">−1.00 rungs</span></div>
+      <div class="chart"><div class="cap">Multiplier per trade</div>
+        <div class="bars"><div class="goal"></div>
+          <div class="bar" style="height:70%"></div><div class="bar miss" style="height:12%"></div>
+          <div class="bar" style="height:66%"></div><div class="bar mid" style="height:30%"></div>
+          <div class="bar" style="height:74%"></div><div class="bar miss" style="height:9%"></div></div></div>
+      <div class="sw"><i style="background:var(--series-1)"></i><i style="background:var(--good)"></i><i style="background:var(--warn)"></i><i style="background:var(--critical)"></i><i style="background:var(--surface-2)"></i></div>
+      <div class="swlab"><span>accent</span><span>good</span><span>warn</span><span>critical</span><span>surface</span></div>
+    </div>
+    <div class="verdict"><b>Holds, and it's the safest.</b> Semantic colours were darkened for contrast on white — the bright versions used by the dark skins would fail against this ground.</div>
+  </div>
+
+</div>
+
+<footer>
+  Same markup in all six; only the tokens differ. Nothing here is wired into the tracker yet &mdash; pick one (or several, if it becomes a selector) and it drops straight into <code>:root</code>.
+</footer>
+
+</div>
+</body>
+</html>
