@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Table options — Trading Ladder Tracker</title>
+<style>
+  :root{
+    --plane:#0e0f11; --surface:#17191c; --surface-2:#1f2226;
+    --ink:#f0f2f5; --ink-2:#a8aeb8; --muted:#6f757e;
+    --grid:#232629; --axis:#333840; --border:rgba(240,242,245,.11);
+    --series-1:#3fd3ff; --good:#4bf0b0; --warn:#ffc247; --critical:#ff5a76;
+    --ui:system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--ink);font-family:var(--ui);
+       font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:38px 22px 90px}
+  header{border-bottom:1px solid var(--border);padding-bottom:20px;margin-bottom:8px}
+  h1{font-size:27px;margin:0 0 8px;letter-spacing:-0.02em}
+  .lede{color:var(--ink-2);margin:0;max-width:72ch;font-size:14.5px}
+  .lede b{color:var(--ink)}
+  .diag{margin:20px 0 30px;padding:14px 16px;border-radius:10px;background:var(--surface);
+        border:1px solid var(--border);border-left:3px solid var(--warn);
+        font-size:13.5px;color:var(--ink-2);max-width:72ch}
+  .diag b{color:var(--ink)}
+
+  .opt{margin-bottom:34px;border:1px solid var(--border);border-radius:13px;overflow:hidden;
+       background:var(--surface)}
+  .opthead{padding:14px 17px;border-bottom:1px solid var(--border)}
+  .opthead .n{font-weight:660;font-size:16px;letter-spacing:-0.01em}
+  .opthead .k{font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;
+              color:var(--muted);margin-left:9px}
+  .opthead .why{color:var(--ink-2);font-size:13px;margin-top:3px;max-width:74ch}
+  .body{padding:16px 17px}
+  .verdict{padding:11px 17px;border-top:1px solid var(--border);font-size:12.5px;color:var(--ink-2)}
+  .verdict b{color:var(--ink)}
+  .scroll{overflow-x:auto}
+
+  /* ── A. as it is now ─────────────────────────────────────────────────── */
+  .t-now{border-collapse:collapse;width:100%;min-width:900px;font-size:13.5px;
+         font-variant-numeric:tabular-nums}
+  .t-now th{text-align:right;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+            color:var(--ink-2);padding:9px 8px;border-bottom:1px solid var(--axis)}
+  .t-now td{text-align:right;padding:9px 8px;border-bottom:1px solid var(--grid);white-space:nowrap}
+  .t-now th:first-child,.t-now td:first-child{text-align:left}
+  .t-now tbody tr:hover{background:var(--surface-2)}
+
+  /* ── B. ledger: rules only where meaning changes, weight does the rest ── */
+  .t-ledger{border-collapse:collapse;width:100%;min-width:820px;font-size:13.5px;
+            font-variant-numeric:tabular-nums}
+  .t-ledger th{text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.09em;
+               color:var(--muted);font-weight:500;padding:0 10px 9px;border-bottom:1px solid var(--axis)}
+  .t-ledger td{text-align:right;padding:8px 10px;white-space:nowrap;border:none;color:var(--ink-2)}
+  .t-ledger th:first-child,.t-ledger td:first-child{text-align:left}
+  .t-ledger tbody tr:nth-child(odd){background:rgba(255,255,255,.022)}
+  .t-ledger .key{color:var(--ink);font-weight:650}
+  .t-ledger .soft{color:var(--muted)}
+  .t-ledger tbody tr:hover{background:rgba(63,211,255,.07)}
+
+  /* ── C. grouped headers ──────────────────────────────────────────────── */
+  .t-group{border-collapse:collapse;width:100%;min-width:860px;font-size:13.5px;
+           font-variant-numeric:tabular-nums}
+  .t-group .grp th{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+                   font-weight:500;padding:0 10px 6px;text-align:center;border:none}
+  .t-group .grp th.b{border-left:1px solid var(--axis)}
+  .t-group thead tr.cols th{text-align:right;font-size:10px;text-transform:uppercase;
+              letter-spacing:.06em;color:var(--ink-2);font-weight:500;padding:0 10px 8px;
+              border-bottom:1px solid var(--axis)}
+  .t-group thead tr.cols th.b{border-left:1px solid var(--axis)}
+  .t-group td{text-align:right;padding:8px 10px;white-space:nowrap;border:none;color:var(--ink-2)}
+  .t-group td.b{border-left:1px solid var(--grid)}
+  .t-group th:first-child,.t-group td:first-child{text-align:left}
+  .t-group tbody tr:nth-child(odd){background:rgba(255,255,255,.022)}
+  .t-group .key{color:var(--ink);font-weight:650}
+
+  /* ── D. essentials, detail on demand ─────────────────────────────────── */
+  .t-slim{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+  .t-slim th{text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.09em;
+             color:var(--muted);font-weight:500;padding:0 10px 9px;border-bottom:1px solid var(--axis)}
+  .t-slim td{text-align:right;padding:10px;white-space:nowrap;border:none;color:var(--ink-2)}
+  .t-slim th:first-child,.t-slim td:first-child{text-align:left}
+  .t-slim .key{color:var(--ink);font-weight:650}
+  .t-slim tbody tr.main{cursor:pointer}
+  .t-slim tbody tr.main:hover{background:rgba(63,211,255,.07)}
+  .t-slim tbody tr.main.on{background:rgba(63,211,255,.09)}
+  .t-slim .chev{color:var(--muted);font-size:11px;margin-right:7px;display:inline-block;width:9px}
+  .t-slim tr.det td{padding:0 10px 12px;color:var(--muted);font-size:12.5px;text-align:left}
+  .t-slim tr.det .pairs{display:flex;gap:20px;flex-wrap:wrap;padding:9px 12px;border-radius:8px;
+                        background:var(--surface-2)}
+  .t-slim tr.det .pairs div span{color:var(--ink);font-weight:650}
+  .t-slim tr.det{display:none}
+  .t-slim tr.det.on{display:table-row}
+
+  /* ── E. rows as cards ────────────────────────────────────────────────── */
+  .cards{display:flex;flex-direction:column;gap:8px}
+  .rowcard{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+           padding:11px 13px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 13px;
+           align-items:baseline;border-left:3px solid var(--good)}
+  .rowcard.miss{border-left-color:var(--critical)}
+  .rowcard .n{font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .rowcard .what{font-weight:650}
+  .rowcard .mult{font-size:19px;font-weight:650;letter-spacing:-.02em;
+                 font-variant-numeric:tabular-nums;text-align:right}
+  .rowcard .mult.miss{color:var(--critical)}
+  .rowcard .mult.hit{color:var(--good)}
+  .rowcard .meta{grid-column:2/-1;color:var(--muted);font-size:12.5px;
+                 font-variant-numeric:tabular-nums}
+
+  /* ── F. shape column ─────────────────────────────────────────────────── */
+  .t-shape{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+  .t-shape th{text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:.09em;
+              color:var(--muted);font-weight:500;padding:0 10px 9px;border-bottom:1px solid var(--axis)}
+  .t-shape td{text-align:right;padding:9px 10px;white-space:nowrap;border:none;color:var(--ink-2)}
+  .t-shape th:first-child,.t-shape td:first-child{text-align:left}
+  .t-shape tbody tr:nth-child(odd){background:rgba(255,255,255,.022)}
+  .t-shape .key{color:var(--ink);font-weight:650}
+  .t-shape .track{position:relative;width:150px;height:16px;background:var(--grid);
+                  border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+  .t-shape .fill{position:absolute;left:0;top:0;bottom:0;background:var(--good);opacity:.75}
+  .t-shape .fill.miss{background:var(--critical)}
+  .t-shape .goalline{position:absolute;top:0;bottom:0;width:2px;background:var(--ink-2);opacity:.65}
+  .t-shape td.shape{text-align:left}
+  footer{margin-top:36px;padding-top:20px;border-top:1px solid var(--border);
+         color:var(--ink-2);font-size:13px;max-width:74ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Table options</h1>
+  <p class="lede">Six treatments of the same six trades. The first is what the tracker does today; the rest are alternatives, two of which change the <b>structure</b> rather than the paint.</p>
+</header>
+
+<div class="diag">
+  <b>The diagnosis first.</b> The styling isn't really what's wrong. Your entries table carries <b>12 columns</b> and the projection <b>10</b>, both forced to <code>min-width:900px</code>, every figure right-aligned at identical weight with a rule under every row. That is a wall of digits with nothing leading. Restyling makes a dense table handsomer &mdash; it is still dense. <b>C, D and E below attack the column count; A, B and F only attack the look.</b>
+</div>
+
+<!-- A -->
+<div class="opt">
+  <div class="opthead"><span class="n">As it is now</span><span class="k">reference</span>
+    <div class="why">Grid rules on every row, all nine columns at equal weight, 900px minimum so it scrolls sideways on anything but a wide screen.</div></div>
+  <div class="body"><div class="scroll"><table class="t-now">
+    <thead><tr><th>#</th><th>Date</th><th>What</th><th>Put in</th><th>Finished</th><th>Mult</th><th>Profit</th><th>Banked</th><th>Rolls on</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>04/03/26</td><td>Bitcoin</td><td>£500.00</td><td>£2,500.00</td><td>5.00x</td><td>£2,000.00</td><td>£825.00</td><td>£1,675.00</td></tr>
+      <tr><td>2</td><td>15/04/26</td><td>Ethereum</td><td>£1,088.00</td><td>£0.00</td><td>0.00x</td><td>−£1,088.00</td><td>£0.00</td><td>£0.00</td></tr>
+      <tr><td>3</td><td>27/05/26</td><td>Bitcoin</td><td>£544.00</td><td>£2,720.00</td><td>5.00x</td><td>£2,176.00</td><td>£897.60</td><td>£1,822.40</td></tr>
+      <tr><td>4</td><td>09/07/26</td><td>S&amp;P 500</td><td>£1,183.00</td><td>£1,775.00</td><td>1.50x</td><td>£592.00</td><td>£585.75</td><td>£1,189.25</td></tr>
+      <tr><td>5</td><td>02/08/26</td><td>Gold</td><td>£600.00</td><td>£3,000.00</td><td>5.00x</td><td>£2,400.00</td><td>£990.00</td><td>£2,010.00</td></tr>
+      <tr><td>6</td><td>19/08/26</td><td>Bitcoin</td><td>£900.00</td><td>£0.00</td><td>0.00x</td><td>−£900.00</td><td>£0.00</td><td>£0.00</td></tr>
+    </tbody></table></div></div>
+  <div class="verdict">The problem in one line: nothing on this row tells you where to look first.</div>
+</div>
+
+<!-- B -->
+<div class="opt">
+  <div class="opthead"><span class="n">Ledger</span><span class="k">restyle only</span>
+    <div class="why">Rules removed, faint banding instead. The multiplier is promoted to full weight and derived figures dropped back, so the eye lands on the number that decides whether the trade was any good.</div></div>
+  <div class="body"><div class="scroll"><table class="t-ledger">
+    <thead><tr><th>#</th><th>Date</th><th>What</th><th>Put in</th><th>Finished</th><th>Mult</th><th>Profit</th><th>Banked</th><th>Rolls on</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>04/03/26</td><td class="key">Bitcoin</td><td>£500</td><td>£2,500</td><td class="key">5.00x</td><td>£2,000</td><td class="soft">£825</td><td class="soft">£1,675</td></tr>
+      <tr><td>2</td><td>15/04/26</td><td class="key">Ethereum</td><td>£1,088</td><td>£0</td><td class="key">0.00x</td><td>−£1,088</td><td class="soft">£0</td><td class="soft">£0</td></tr>
+      <tr><td>3</td><td>27/05/26</td><td class="key">Bitcoin</td><td>£544</td><td>£2,720</td><td class="key">5.00x</td><td>£2,176</td><td class="soft">£898</td><td class="soft">£1,822</td></tr>
+      <tr><td>4</td><td>09/07/26</td><td class="key">S&amp;P 500</td><td>£1,183</td><td>£1,775</td><td class="key">1.50x</td><td>£592</td><td class="soft">£586</td><td class="soft">£1,189</td></tr>
+      <tr><td>5</td><td>02/08/26</td><td class="key">Gold</td><td>£600</td><td>£3,000</td><td class="key">5.00x</td><td>£2,400</td><td class="soft">£990</td><td class="soft">£2,010</td></tr>
+      <tr><td>6</td><td>19/08/26</td><td class="key">Bitcoin</td><td>£900</td><td>£0</td><td class="key">0.00x</td><td>−£900</td><td class="soft">£0</td><td class="soft">£0</td></tr>
+    </tbody></table></div></div>
+  <div class="verdict"><b>Cheapest win.</b> Roughly ten lines of CSS, no markup change, and it reads far better. Still nine columns and still scrolls on a phone.</div>
+</div>
+
+<!-- C -->
+<div class="opt">
+  <div class="opthead"><span class="n">Grouped</span><span class="k">structure</span>
+    <div class="why">The columns already fall into three ideas &mdash; what you did, how it went, where the money ended up. Saying so out loud turns nine columns into three things to read.</div></div>
+  <div class="body"><div class="scroll"><table class="t-group">
+    <thead>
+      <tr class="grp"><th colspan="3">The trade</th><th colspan="3" class="b">How it went</th><th colspan="3" class="b">Where it landed</th></tr>
+      <tr class="cols"><th>#</th><th>Date</th><th>What</th><th class="b">Put in</th><th>Finished</th><th>Mult</th><th class="b">Profit</th><th>Banked</th><th>Rolls on</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>04/03/26</td><td class="key">Bitcoin</td><td class="b">£500</td><td>£2,500</td><td class="key">5.00x</td><td class="b">£2,000</td><td>£825</td><td>£1,675</td></tr>
+      <tr><td>2</td><td>15/04/26</td><td class="key">Ethereum</td><td class="b">£1,088</td><td>£0</td><td class="key">0.00x</td><td class="b">−£1,088</td><td>£0</td><td>£0</td></tr>
+      <tr><td>3</td><td>27/05/26</td><td class="key">Bitcoin</td><td class="b">£544</td><td>£2,720</td><td class="key">5.00x</td><td class="b">£2,176</td><td>£898</td><td>£1,822</td></tr>
+      <tr><td>4</td><td>09/07/26</td><td class="key">S&amp;P 500</td><td class="b">£1,183</td><td>£1,775</td><td class="key">1.50x</td><td class="b">£592</td><td>£586</td><td>£1,189</td></tr>
+      <tr><td>5</td><td>02/08/26</td><td class="key">Gold</td><td class="b">£600</td><td>£3,000</td><td class="key">5.00x</td><td class="b">£2,400</td><td>£990</td><td>£2,010</td></tr>
+      <tr><td>6</td><td>19/08/26</td><td class="key">Bitcoin</td><td class="b">£900</td><td>£0</td><td class="key">0.00x</td><td class="b">−£900</td><td>£0</td><td>£0</td></tr>
+    </tbody></table></div></div>
+  <div class="verdict"><b>Best for the projection table,</b> where the columns genuinely are three stages of one calculation. Doesn't reduce width.</div>
+</div>
+
+<!-- D -->
+<div class="opt">
+  <div class="opthead"><span class="n">Essentials, detail on tap</span><span class="k">structure</span>
+    <div class="why">Five columns instead of nine. The other four are still there &mdash; click a row. Nothing removed, just not all shouting at once.</div></div>
+  <div class="body"><table class="t-slim" id="slim">
+    <thead><tr><th>#</th><th>What</th><th>Put in</th><th>Finished</th><th>Mult</th></tr></thead>
+    <tbody>
+      <tr class="main"><td><span class="chev">▸</span>1</td><td class="key">Bitcoin</td><td>£500</td><td>£2,500</td><td class="key">5.00x</td></tr>
+      <tr class="det"><td colspan="5"><div class="pairs"><div>Date <span>04/03/26</span></div><div>Profit <span>£2,000</span></div><div>Banked <span>£825</span></div><div>Rolls on <span>£1,675</span></div></div></td></tr>
+      <tr class="main"><td><span class="chev">▸</span>2</td><td class="key">Ethereum</td><td>£1,088</td><td>£0</td><td class="key">0.00x</td></tr>
+      <tr class="det"><td colspan="5"><div class="pairs"><div>Date <span>15/04/26</span></div><div>Profit <span>−£1,088</span></div><div>Banked <span>£0</span></div><div>Rolls on <span>£0</span></div></div></td></tr>
+      <tr class="main"><td><span class="chev">▸</span>3</td><td class="key">Bitcoin</td><td>£544</td><td>£2,720</td><td class="key">5.00x</td></tr>
+      <tr class="det"><td colspan="5"><div class="pairs"><div>Date <span>27/05/26</span></div><div>Profit <span>£2,176</span></div><div>Banked <span>£898</span></div><div>Rolls on <span>£1,822</span></div></div></td></tr>
+      <tr class="main"><td><span class="chev">▸</span>4</td><td class="key">S&amp;P 500</td><td>£1,183</td><td>£1,775</td><td class="key">1.50x</td></tr>
+      <tr class="det"><td colspan="5"><div class="pairs"><div>Date <span>09/07/26</span></div><div>Profit <span>£592</span></div><div>Banked <span>£586</span></div><div>Rolls on <span>£1,189</span></div></div></td></tr>
+    </tbody></table></div>
+  <div class="verdict"><b>The one I'd pick for entries.</b> Kills the sideways scroll outright and the row you tapped is the one you cared about. Costs a click for the detail.</div>
+</div>
+
+<!-- E -->
+<div class="opt">
+  <div class="opthead"><span class="n">Rows as cards</span><span class="k">structure</span>
+    <div class="why">No table at all. Each trade is a card led by its multiplier, with the rest as a quiet second line. Works identically at any width.</div></div>
+  <div class="body"><div class="cards">
+    <div class="rowcard"><span class="n">01</span><span class="what">Bitcoin</span><span class="mult hit">5.00x</span>
+      <span class="meta">£500 → £2,500 · banked £825 · 04/03/26</span></div>
+    <div class="rowcard miss"><span class="n">02</span><span class="what">Ethereum</span><span class="mult miss">0.00x</span>
+      <span class="meta">£1,088 → £0 · banked £0 · 15/04/26</span></div>
+    <div class="rowcard"><span class="n">03</span><span class="what">Bitcoin</span><span class="mult hit">5.00x</span>
+      <span class="meta">£544 → £2,720 · banked £898 · 27/05/26</span></div>
+    <div class="rowcard miss"><span class="n">04</span><span class="what">S&amp;P 500</span><span class="mult">1.50x</span>
+      <span class="meta">£1,183 → £1,775 · banked £586 · 09/07/26 · closed short of target</span></div>
+  </div></div>
+  <div class="verdict"><b>Best on a phone by a distance,</b> and the outcome is legible before you read a digit. Worse for scanning twenty trades &mdash; columns beat cards when you want to compare.</div>
+</div>
+
+<!-- F -->
+<div class="opt">
+  <div class="opthead"><span class="n">Shape column</span><span class="k">restyle</span>
+    <div class="why">The multiplier drawn as well as printed, against a marker for your target. You read the pattern of a run without reading any numbers.</div></div>
+  <div class="body"><table class="t-shape">
+    <thead><tr><th>#</th><th>What</th><th>Mult</th><th class="shape" style="text-align:left">Against target</th><th>Banked</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td class="key">Bitcoin</td><td class="key">5.00x</td><td class="shape"><span class="track"><span class="fill" style="width:83%"></span><span class="goalline" style="left:83%"></span></span></td><td>£825</td></tr>
+      <tr><td>2</td><td class="key">Ethereum</td><td class="key">0.00x</td><td class="shape"><span class="track"><span class="fill miss" style="width:2%"></span><span class="goalline" style="left:83%"></span></span></td><td>£0</td></tr>
+      <tr><td>3</td><td class="key">Bitcoin</td><td class="key">5.00x</td><td class="shape"><span class="track"><span class="fill" style="width:83%"></span><span class="goalline" style="left:83%"></span></span></td><td>£898</td></tr>
+      <tr><td>4</td><td class="key">S&amp;P 500</td><td class="key">1.50x</td><td class="shape"><span class="track"><span class="fill miss" style="width:25%"></span><span class="goalline" style="left:83%"></span></span></td><td>£586</td></tr>
+      <tr><td>5</td><td class="key">Gold</td><td class="key">5.00x</td><td class="shape"><span class="track"><span class="fill" style="width:83%"></span><span class="goalline" style="left:83%"></span></span></td><td>£990</td></tr>
+      <tr><td>6</td><td class="key">Bitcoin</td><td class="key">0.00x</td><td class="shape"><span class="track"><span class="fill miss" style="width:2%"></span><span class="goalline" style="left:83%"></span></span></td><td>£0</td></tr>
+    </tbody></table></div>
+  <div class="verdict"><b>Combines well with D.</b> The bar carries the hit-versus-miss story the app already cares about, and the pale line is your target so a near-miss looks like a near-miss.</div>
+</div>
+
+<footer>
+  My recommendation: <b>D for entries</b> (kills the sideways scroll), <b>C for the projection</b> (its columns really are three stages of one sum), <b>F's bar</b> folded into both, and <b>E</b> as what D collapses to below about 560px.
+</footer>
+
+</div>
+<script>
+(function(){
+  var t=document.getElementById('slim');
+  t.addEventListener('click',function(ev){
+    var tr=ev.target.closest?ev.target.closest('tr.main'):null;
+    if(!tr) return;
+    var det=tr.nextElementSibling;
+    if(!det||!det.classList.contains('det')) return;
+    var on=det.classList.toggle('on');
+    tr.classList.toggle('on',on);
+    tr.querySelector('.chev').textContent=on?'▾':'▸';
+  });
+})();
+</script>
+</body>
+</html>
