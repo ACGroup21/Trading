@@ -37,6 +37,11 @@
   .card .hint{color:var(--ink-2);font-size:13px;margin:0 0 16px}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
   @media (max-width:860px){.two{grid-template-columns:1fr}}
+  /* Grid children default to min-width:auto, so they refuse to shrink below their
+     own content — which is how a 356px column ends up 398px wide on a phone and
+     pushes the whole page sideways. Let them shrink; the inner .scroll wrappers
+     already handle anything that genuinely needs the room. */
+  .two>*,.mini>*,.tiles>*,.plangrid>*,.fgrid>*,.devtol>*{min-width:0}
 
   /* ---- the plan band ---- */
   .plan{border-left:3px solid var(--series-1)}
@@ -119,6 +124,17 @@
   .guideb .k{display:inline-block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;
              color:var(--muted);border:1px solid var(--border);border-radius:99px;
              padding:2px 9px;margin-right:7px}
+
+  /* ---- phone: fingers, not cursors ---- */
+  @media (max-width:640px){
+    .helpq{width:26px;height:26px;font-size:13px;margin-left:8px}
+    .viewbtn{padding:13px 10px}
+    button.ghost,button.primary,#guideBtn,#demoBtn{min-height:44px}
+    input[type=checkbox]{transform:scale(1.35)}
+    .popx{width:34px;height:34px;font-size:22px}
+    .pop{width:calc(100vw - 20px);max-height:min(70vh,520px)}
+    .guide{width:calc(100vw - 20px);max-height:88vh}
+  }
 
   /* ---- three views ----
      Set-up, logging and review are used once, weekly and monthly, and they had all
