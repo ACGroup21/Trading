@@ -293,3 +293,20 @@ whether the numbers are right.
 - Every input the user types into gets a clear button (`data-clr`).
 - The tool states its assumptions where the user will see them. It is a calculator,
   not advice, and it should not flatter the plan.
+
+## Phone
+
+Checked at a real 375x812 with device emulation, not a narrowed desktop window — the
+two are not the same and the narrowed window hid the bug below.
+
+**Grid children need `min-width:0`.** They default to `min-width:auto` and refuse to
+shrink below their own content, so `.two`'s Your record column rendered 398px wide in a
+356px slot and pushed the document to 418px against a 375px viewport. Every grid in the
+file (`.two`, `.mini`, `.tiles`, `.plangrid`, `.fgrid`, `.devtol`) sets it on its
+children. **If a new grid appears, it needs the same line** — this is the failure mode
+to check first when the page scrolls sideways.
+
+**A collision sweep must filter to rendered elements only.** Content inside a *closed*
+`<details>` still reports geometry here, so a naive overlap check reported two
+collisions that do not exist. Filter on `offsetParent` plus open-ancestor checks.
+Overflow checks alone miss wrap and overlap bugs, which is why both are run.
