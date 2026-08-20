@@ -327,3 +327,21 @@ has room for a normal dialog and should not get the phone treatment.
 Caveat for whoever tests next: this environment reports `pointer:fine` at tablet widths,
 so the coarse branch could not be observed firing. It is verified present and
 well-formed, not verified on real hardware.
+
+## Desktop, and the two colour schemes
+
+Swept 1280–2560: no overflow on any view at any width, zero collisions across 245
+rendered elements, content capped at 1080px and centred. Desktop layout needs nothing.
+
+**Light mode is the default and was unverified for a long time.** The dark palette sits
+behind `prefers-color-scheme: dark`, so anyone whose OS is in light mode — including a
+first-time visitor — gets the `:root` block. Measured, it failed WCAG AA in 92 places out
+of 387, and **89 of those were `--muted` alone** at 3.2–3.5 where 4.5 is needed. Now
+`#6b6a65`. **Check any muted-text change against `#f2f2ee`**, the darkest ground it sits
+on, and measure both schemes — they have separate token blocks and fixing one proves
+nothing about the other.
+
+**Dark mode still has 39 known failures**, left deliberately: `--critical` `#d03b3b`
+reads 3.27 on dark surfaces, white on `--series-1` `#3987e5` reads 3.64, `--muted` 4.38.
+Real, but the dark palette is the owner's daily view and a parked decision — raise it
+before changing it.
