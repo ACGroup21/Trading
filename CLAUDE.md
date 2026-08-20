@@ -341,7 +341,19 @@ of 387, and **89 of those were `--muted` alone** at 3.2–3.5 where 4.5 is neede
 on, and measure both schemes — they have separate token blocks and fixing one proves
 nothing about the other.
 
-**Dark mode still has 39 known failures**, left deliberately: `--critical` `#d03b3b`
-reads 3.27 on dark surfaces, white on `--series-1` `#3987e5` reads 3.64, `--muted` 4.38.
-Real, but the dark palette is the owner's daily view and a parked decision — raise it
-before changing it.
+**Dark mode is fixed too** — it had 39 failures of its own. `--muted` is now `#949289`
+(was 4.38) and `--critical` `#ff6b6b` (was 3.27, the worst in the app, and it lands on
+losing multipliers, negative profit and rungs lost).
+
+**Never hard-code `#fff` as text on a filled colour.** `--critical` is also a background:
+the armed reset button puts text on it, and white on the brightened red reads 2.77, so
+fixing the figures would have broken the button. Text sitting on a filled accent or
+critical block uses `--on-accent` / `--on-critical`, which are white in light and
+near-black in dark. Six rules had `color:#fff` and all six were wrong in one scheme.
+
+The accent itself was deliberately **not** darkened to fix white-on-blue. `--series-1` is
+the app's one strong colour and dulling it would flatten every chart line and border;
+the blue stays and the text on it went near-black instead.
+
+Both schemes measure 0 failures over 387 elements. Re-measure both after any token
+change — they are separate blocks and a shared token like `--on-accent` moves both.
