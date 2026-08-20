@@ -8,10 +8,17 @@
   :root{
     color-scheme: light;
     --plane:#f9f9f7; --surface:#fcfcfb; --surface-2:#f2f2ee;
-    --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+    --ink:#0b0b0b; --ink-2:#52514e;
+    /* Light mode was never measured until now and failed WCAG AA in 92 places, 89 of
+       them this one token: #898781 gave 3.2-3.5 against these surfaces where 4.5 is
+       needed. Every muted label, hint and table figure was affected. These three are
+       the light values only — the dark block below redeclares all of them, so dark is
+       untouched. Check any change here against #f2f2ee, the darkest ground muted
+       text sits on. */
+    --muted:#6b6a65;
     --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
-    --series-1:#2a78d6; --series-1-soft:rgba(42,120,214,0.12);
-    --good:#0ca30c; --good-ink:#006300; --warn:#fab219; --critical:#d03b3b;
+    --series-1:#2470cc; --series-1-soft:rgba(42,120,214,0.12);
+    --good:#0ca30c; --good-ink:#006300; --warn:#fab219; --critical:#c62b2b;
     --radius:14px;
     --font: system-ui, -apple-system, "Segoe UI", sans-serif;
   }
