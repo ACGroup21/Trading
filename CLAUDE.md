@@ -310,3 +310,20 @@ to check first when the page scrolls sideways.
 `<details>` still reports geometry here, so a naive overlap check reported two
 collisions that do not exist. Filter on `offsetParent` plus open-ancestor checks.
 Overflow checks alone miss wrap and overlap bugs, which is why both are run.
+
+## Tablet
+
+Swept 360–1180 in an iframe harness (one page, many widths) rather than resizing the
+window repeatedly — the resize is flaky and the harness tests every breakpoint in one
+pass. **Layout is sound across that whole range**: no horizontal overflow on any view at
+any width, and `.two` flips one column to two at 861 as intended.
+
+**Touch sizing keys on the pointer, not the width.** A tablet is touch at 768–1024, so a
+width-only rule left it with 19px controls. The block is
+`@media (max-width:640px), (pointer:coarse)`. Keep sizing in that block and *layout*
+tweaks (full-width popover and guide) in the width-only one below it — a 1024px tablet
+has room for a normal dialog and should not get the phone treatment.
+
+Caveat for whoever tests next: this environment reports `pointer:fine` at tablet widths,
+so the coarse branch could not be observed firing. It is verified present and
+well-formed, not verified on real hardware.
