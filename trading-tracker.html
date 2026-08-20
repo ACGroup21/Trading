@@ -125,13 +125,21 @@
              color:var(--muted);border:1px solid var(--border);border-radius:99px;
              padding:2px 9px;margin-right:7px}
 
-  /* ---- phone: fingers, not cursors ---- */
-  @media (max-width:640px){
+  /* ---- fingers, not cursors ----
+     Keyed on the pointer as well as the width: a tablet is touch at 768-1024, so a
+     width-only rule leaves it with 19px controls. Sizing goes to any coarse pointer;
+     the cramped-screen layout tweaks below stay on width, because a 1024px tablet has
+     plenty of room for a normal dialog. */
+  @media (max-width:640px), (pointer:coarse){
     .helpq{width:26px;height:26px;font-size:13px;margin-left:8px}
     .viewbtn{padding:13px 10px}
     button.ghost,button.primary,#guideBtn,#demoBtn{min-height:44px}
+    button.star{min-height:36px;min-width:40px}
+    select,input[type=text],input[type=number],input[type=date]{min-height:44px}
     input[type=checkbox]{transform:scale(1.35)}
     .popx{width:34px;height:34px;font-size:22px}
+  }
+  @media (max-width:640px){
     .pop{width:calc(100vw - 20px);max-height:min(70vh,520px)}
     .guide{width:calc(100vw - 20px);max-height:88vh}
   }
